@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
-import { Card } from '@/components/ui/Card'
+import {
+  CalendarClock,
+  CheckCircle2,
+  ChevronLeft,
+  Clock,
+  GraduationCap,
+  KeyRound,
+  Loader2,
+  Search,
+  Sparkles,
+} from 'lucide-react'
+import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { Badge } from '@/components/ui/Badge'
-import { cn, formatHora, formatPorcentaje } from '@/lib/utils'
-import { useBuscarAlumnos, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
-import type { BuscarAlumnosRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
+import { cn, DIAS_SEMANA, formatHora, formatPorcentaje } from '@/lib/utils'
+import { useBuscarAlumnos, useHorariosPublicos, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
+import type { BuscarAlumnosRow, HorarioPublicoRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
 
 export function HomeAlumno() {
   const { data: sesiones, isLoading } = useSesionActiva()
@@ -25,40 +35,40 @@ export function HomeAlumno() {
     if (sesiones && sesiones.length === 0) setSesionId(null)
   }, [sesiones, sesionId])
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center text-white/50">
-        <Loader2 className="size-6 animate-spin" />
-      </div>
-    )
-  }
-
-  if (!sesiones || sesiones.length === 0) {
-    return <SinClase />
-  }
-
   return (
     <div className="mx-auto max-w-lg space-y-5">
-      {sesiones.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {sesiones.map((s) => (
-            <button
-              key={s.sesion_id}
-              onClick={() => setSesionId(s.sesion_id)}
-              className={cn(
-                'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                s.sesion_id === sesionActiva?.sesion_id
-                  ? 'border-brand-400/60 bg-brand-500/20 text-white'
-                  : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
-              )}
-            >
-              {s.clase_nombre} · {s.comision_nombre}
-            </button>
-          ))}
+      {isLoading ? (
+        <div className="flex min-h-[40vh] items-center justify-center text-white/50">
+          <Loader2 className="size-6 animate-spin" />
         </div>
+      ) : !sesiones || sesiones.length === 0 ? (
+        <SinClase />
+      ) : (
+        <>
+          {sesiones.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {sesiones.map((s) => (
+                <button
+                  key={s.sesion_id}
+                  onClick={() => setSesionId(s.sesion_id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                    s.sesion_id === sesionActiva?.sesion_id
+                      ? 'border-brand-400/60 bg-brand-500/20 text-white'
+                      : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
+                  )}
+                >
+                  {s.clase_nombre} · {s.comision_nombre}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sesionActiva && <ClaseEnCurso sesion={sesionActiva} />}
+        </>
       )}
 
-      {sesionActiva && <ClaseEnCurso sesion={sesionActiva} />}
+      <HorariosPublicos />
     </div>
   )
 }
@@ -74,6 +84,53 @@ function SinClase() {
         Volvé a esta página cuando empiece la clase para marcar tu asistencia.
       </p>
     </div>
+  )
+}
+
+function HorariosPublicos() {
+  const { data: horarios } = useHorariosPublicos()
+  if (!horarios || horarios.length === 0) return null
+
+  const porDia = new Map<number, HorarioPublicoRow[]>()
+  for (const h of horarios) {
+    const arr = porDia.get(h.dia_semana) ?? []
+    arr.push(h)
+    porDia.set(h.dia_semana, arr)
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2">
+        <CalendarClock className="size-4 text-white/40" />
+        <CardTitle className="text-base">Horarios de cursada</CardTitle>
+      </div>
+      <CardSubtitle>Día, horario y aula de cada comisión.</CardSubtitle>
+
+      <div className="mt-4 space-y-4">
+        {[...porDia.entries()].map(([dia, items]) => (
+          <div key={dia}>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-brand-400/80">{DIAS_SEMANA[dia - 1]}</p>
+            <div className="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
+              {items.map((h, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-white">{h.comision_nombre ?? 'General'}</p>
+                    <p className="text-xs text-white/45">
+                      {formatHora(h.hora_inicio)} a {formatHora(h.hora_fin)}
+                    </p>
+                  </div>
+                  {h.aula && (
+                    <Badge tone="brand" className="shrink-0">
+                      Aula {h.aula}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 

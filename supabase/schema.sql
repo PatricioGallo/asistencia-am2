@@ -22,6 +22,7 @@ create table profesores (
   id uuid primary key references auth.users (id) on delete cascade,
   email text not null,
   nombre text,
+  mostrar_horarios boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -74,6 +75,28 @@ create table sesion_comisiones (
   primary key (sesion_id, comision_id)
 );
 
+-- Horario semanal fijo de cursada (independiente de las sesiones puntuales
+-- del calendario). Solo se usa para mostrarle al alumno, opcionalmente,
+-- dónde y cuándo son las clases (ver profesores.mostrar_horarios).
+create table horarios (
+  id uuid primary key default gen_random_uuid(),
+  profesor_id uuid not null references profesores (id) on delete cascade,
+  dia_semana int not null check (dia_semana between 1 and 7), -- 1 = lunes .. 7 = domingo
+  hora_inicio time not null,
+  hora_fin time not null,
+  aula text,
+  created_at timestamptz not null default now(),
+  check (hora_fin > hora_inicio)
+);
+
+-- Qué comisiones dan ese horario (many-to-many): una clase conjunta de dos
+-- comisiones se carga una sola vez y marca las dos, igual que sesion_comisiones.
+create table horario_comisiones (
+  horario_id uuid not null references horarios (id) on delete cascade,
+  comision_id uuid not null references comisiones (id) on delete cascade,
+  primary key (horario_id, comision_id)
+);
+
 create table codigos (
   id uuid primary key default gen_random_uuid(),
   profesor_id uuid not null references profesores (id) on delete cascade,
@@ -99,6 +122,8 @@ create index idx_alumnos_comision on alumnos (comision_id);
 create index idx_sesiones_fecha on sesiones (fecha);
 create index idx_sesiones_clase on sesiones (clase_id);
 create index idx_sesion_comisiones_comision on sesion_comisiones (comision_id);
+create index idx_horarios_profesor on horarios (profesor_id);
+create index idx_horario_comisiones_comision on horario_comisiones (comision_id);
 create index idx_codigos_sesion_expira on codigos (sesion_id, expira_at);
 create index idx_asistencias_alumno on asistencias (alumno_id);
 create index idx_asistencias_sesion on asistencias (sesion_id);
@@ -178,6 +203,8 @@ alter table alumnos enable row level security;
 alter table clases enable row level security;
 alter table sesiones enable row level security;
 alter table sesion_comisiones enable row level security;
+alter table horarios enable row level security;
+alter table horario_comisiones enable row level security;
 alter table codigos enable row level security;
 alter table asistencias enable row level security;
 
@@ -213,6 +240,16 @@ create policy "profesor administra sus sesion_comisiones"
   on sesion_comisiones for all
   using (exists (select 1 from sesiones s where s.id = sesion_id and s.profesor_id = auth.uid()))
   with check (exists (select 1 from sesiones s where s.id = sesion_id and s.profesor_id = auth.uid()));
+
+create policy "profesor administra sus horarios"
+  on horarios for all
+  using (profesor_id = auth.uid())
+  with check (profesor_id = auth.uid());
+
+create policy "profesor administra sus horario_comisiones"
+  on horario_comisiones for all
+  using (exists (select 1 from horarios h where h.id = horario_id and h.profesor_id = auth.uid()))
+  with check (exists (select 1 from horarios h where h.id = horario_id and h.profesor_id = auth.uid()));
 
 create policy "profesor administra sus codigos"
   on codigos for all
@@ -274,6 +311,39 @@ as $$
 $$;
 
 grant execute on function sesion_activa() to anon, authenticated;
+
+-- Horario semanal de los profesores que optaron por mostrarlo (ver
+-- profesores.mostrar_horarios). Es la única forma en que el rol anónimo
+-- puede leer la tabla "horarios".
+create function horarios_publicos()
+returns table (
+  comision_nombre text,
+  dia_semana int,
+  hora_inicio time,
+  hora_fin time,
+  aula text
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    string_agg(co.nombre, ', ' order by co.nombre),
+    h.dia_semana,
+    h.hora_inicio,
+    h.hora_fin,
+    h.aula
+  from horarios h
+  join profesores p on p.id = h.profesor_id
+  join horario_comisiones hc on hc.horario_id = h.id
+  join comisiones co on co.id = hc.comision_id
+  where p.mostrar_horarios = true
+  group by h.id, h.dia_semana, h.hora_inicio, h.hora_fin, h.aula
+  order by h.dia_semana, h.hora_inicio;
+$$;
+
+grant execute on function horarios_publicos() to anon, authenticated;
 
 -- Alumnos cuyo legajo empieza con lo tipeado, con sus estadísticas, scopeado
 -- al profesor dueño de la sesión activa ahora mismo (evita exponer datos

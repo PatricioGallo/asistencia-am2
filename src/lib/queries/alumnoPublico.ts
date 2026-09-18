@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
-import type { SesionActivaRow } from '../database.types'
+import type { HorarioPublicoRow, SesionActivaRow } from '../database.types'
 
 const SESION_ACTIVA_KEY = ['sesion-activa']
 
@@ -33,6 +33,18 @@ export function useSesionActiva() {
   }, [qc])
 
   return query
+}
+
+/** Horario semanal de los profesores que optaron por mostrarlo en la página principal. */
+export function useHorariosPublicos() {
+  return useQuery({
+    queryKey: ['horarios-publicos'],
+    queryFn: async (): Promise<HorarioPublicoRow[]> => {
+      const { data, error } = await supabase.rpc('horarios_publicos')
+      if (error) throw error
+      return data ?? []
+    },
+  })
 }
 
 export function useBuscarAlumnos() {

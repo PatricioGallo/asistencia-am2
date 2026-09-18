@@ -7,6 +7,7 @@ export interface Profesor {
   id: string
   email: string
   nombre: string | null
+  mostrar_horarios: boolean
   created_at: string
 }
 
@@ -46,6 +47,21 @@ export interface Sesion {
 
 export interface SesionComision {
   sesion_id: string
+  comision_id: string
+}
+
+export interface Horario {
+  id: string
+  profesor_id: string
+  dia_semana: number
+  hora_inicio: string
+  hora_fin: string
+  aula: string | null
+  created_at: string
+}
+
+export interface HorarioComision {
+  horario_id: string
   comision_id: string
 }
 
@@ -102,6 +118,14 @@ export interface BuscarAlumnosRow {
   presentes: number
   total_clases: number
   porcentaje: number
+}
+
+export interface HorarioPublicoRow {
+  comision_nombre: string | null
+  dia_semana: number
+  hora_inicio: string
+  hora_fin: string
+  aula: string | null
 }
 
 export interface RegistrarAsistenciaRow {
@@ -164,6 +188,23 @@ export interface Database {
         Update: Partial<SesionComision>
         Relationships: []
       }
+      horarios: {
+        Row: Horario
+        Insert: Partial<Horario> & {
+          profesor_id: string
+          dia_semana: number
+          hora_inicio: string
+          hora_fin: string
+        }
+        Update: Partial<Horario>
+        Relationships: []
+      }
+      horario_comisiones: {
+        Row: HorarioComision
+        Insert: HorarioComision
+        Update: Partial<HorarioComision>
+        Relationships: []
+      }
       codigos: {
         Row: Codigo
         Insert: Partial<Codigo> & { profesor_id: string; sesion_id: string; codigo: string }
@@ -197,6 +238,10 @@ export interface Database {
       buscar_alumnos: {
         Args: { p_query: string }
         Returns: BuscarAlumnosRow[]
+      }
+      horarios_publicos: {
+        Args: Record<PropertyKey, never>
+        Returns: HorarioPublicoRow[]
       }
       registrar_asistencia: {
         Args: { p_legajo: string; p_codigo: string }
