@@ -1,0 +1,21 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#22D3EE" />
+    </linearGradient>
+    <path id="integral" d="
+      M 26,18
+      C 19,16 15,18 16,23
+      C 17,27 20,29 22,33
+      L 30,58
+      C 32,63 33,67 30,70
+      C 28,73 24,74 18,72
+    " />
+  </defs>
+  <rect x="0" y="0" width="100" height="100" rx="22" fill="url(#bg)" />
+  <g transform="translate(50,50) scale(1.15) translate(-35,-45)">
+    <use href="#integral" x="0" y="0" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    <use href="#integral" x="22" y="0" stroke="white" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>
