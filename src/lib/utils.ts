@@ -5,14 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // sin 0/O/1/I/L para evitar confusiones
+// Palabras de AM2 en vez de códigos al azar: más fáciles de decir en voz alta y anotar en el pizarrón.
+const PALABRAS_CODIGO = [
+  'INTEGRAL', 'DERIVADA', 'LIMITE', 'VECTOR', 'MATRIZ', 'SERIE', 'TEOREMA', 'GRADIENTE',
+  'DIVERGE', 'CONVERGE', 'ROTOR', 'JACOBIANO', 'TAYLOR', 'FOURIER', 'LAPLACE', 'CONTINUA',
+  'DOMINIO', 'EXTREMO', 'MAXIMO', 'MINIMO', 'SILLA', 'CURVA', 'ESFERA', 'CILINDRO',
+  'PARABOLA', 'ELIPSE', 'POLAR', 'CAMPO', 'ESCALAR', 'GREEN', 'STOKES', 'GAUSS',
+  'FLUJO', 'PLANO', 'NORMAL', 'TANGENTE', 'ANGULO', 'RADIO', 'VOLUMEN',
+]
 
-export function generarCodigo(length = 6) {
-  let out = ''
-  for (let i = 0; i < length; i++) {
-    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]
-  }
-  return out
+/** Código de asistencia: una palabra relacionada con la materia, no una cadena al azar. */
+export function generarCodigo() {
+  return PALABRAS_CODIGO[Math.floor(Math.random() * PALABRAS_CODIGO.length)]
 }
 
 export function formatFecha(iso: string) {

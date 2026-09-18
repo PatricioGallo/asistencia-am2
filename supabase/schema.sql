@@ -275,14 +275,13 @@ $$;
 
 grant execute on function sesion_activa() to anon, authenticated;
 
--- Datos + estadísticas de un alumno por legajo, scopeado al profesor dueño
--- de la sesión que esté activa ahora mismo (evita exponer datos fuera de
--- horario de clase).
-create function alumno_stats(p_legajo text)
+-- Alumnos cuyo legajo empieza con lo tipeado, con sus estadísticas, scopeado
+-- al profesor dueño de la sesión activa ahora mismo (evita exponer datos
+-- fuera de horario de clase). El alumno elige el suyo tocando su nombre.
+create function buscar_alumnos(p_query text)
 returns table (
-  ok boolean,
-  mensaje text,
   alumno_id uuid,
+  legajo text,
   nombre text,
   apellido text,
   comision_nombre text,
@@ -296,7 +295,6 @@ set search_path = public
 as $$
 declare
   v_profesor_id uuid;
-  v_alumno record;
 begin
   select s.profesor_id into v_profesor_id
   from sesiones s
@@ -305,28 +303,21 @@ begin
   limit 1;
 
   if v_profesor_id is null then
-    return query select false, 'No hay ninguna clase en curso ahora mismo.', null::uuid, null::text, null::text, null::text, null::int, null::int, null::numeric;
-    return;
-  end if;
-
-  select v.* into v_alumno
-  from vista_asistencia_alumno v
-  join alumnos al on al.id = v.alumno_id
-  where al.profesor_id = v_profesor_id
-    and lower(al.legajo) = lower(trim(p_legajo));
-
-  if not found then
-    return query select false, 'No encontramos ese legajo.', null::uuid, null::text, null::text, null::text, null::int, null::int, null::numeric;
     return;
   end if;
 
   return query
-    select true, 'ok', v_alumno.alumno_id, v_alumno.nombre, v_alumno.apellido,
-           v_alumno.comision_nombre, v_alumno.presentes, v_alumno.total_clases, v_alumno.porcentaje;
+    select v.alumno_id, v.legajo, v.nombre, v.apellido, v.comision_nombre, v.presentes::int, v.total_clases::int, v.porcentaje
+    from vista_asistencia_alumno v
+    join alumnos al on al.id = v.alumno_id
+    where al.profesor_id = v_profesor_id
+      and al.legajo ilike trim(p_query) || '%'
+    order by al.legajo
+    limit 8;
 end;
 $$;
 
-grant execute on function alumno_stats(text) to anon, authenticated;
+grant execute on function buscar_alumnos(text) to anon, authenticated;
 
 -- Registra la asistencia validando el código de 60s. Es la única forma en
 -- que el rol anónimo puede escribir en "asistencias".
@@ -363,10 +354,10 @@ begin
     return;
   end if;
 
-  select id, nombre, apellido into v_alumno
-  from alumnos
-  where profesor_id = v_codigo.profesor_id
-    and lower(legajo) = lower(trim(p_legajo));
+  select al.id, al.nombre, al.apellido into v_alumno
+  from alumnos al
+  where al.profesor_id = v_codigo.profesor_id
+    and lower(al.legajo) = lower(trim(p_legajo));
 
   if not found then
     return query select false, 'No encontramos ese legajo.', null::text, null::text, null::int, null::int, null::numeric;
@@ -384,9 +375,9 @@ begin
   insert into asistencias (profesor_id, alumno_id, sesion_id, clase_id, metodo)
   values (v_codigo.profesor_id, v_alumno.id, v_codigo.sesion_id, v_codigo.clase_id, 'codigo');
 
-  select presentes, total_clases, porcentaje into v_stats
-  from vista_asistencia_alumno
-  where alumno_id = v_alumno.id;
+  select va.presentes::int, va.total_clases::int, va.porcentaje into v_stats
+  from vista_asistencia_alumno va
+  where va.alumno_id = v_alumno.id;
 
   return query
     select true, '¡Asistencia registrada!', v_alumno.nombre, v_alumno.apellido,

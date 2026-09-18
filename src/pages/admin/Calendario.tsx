@@ -21,7 +21,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { cn, formatHora } from '@/lib/utils'
-import { useComisiones, useCrearComision, useEliminarComision } from '@/lib/queries/comisiones'
+import { useComisiones } from '@/lib/queries/comisiones'
 import {
   useActualizarSesion,
   useCodigoActivo,
@@ -31,6 +31,7 @@ import {
   type SesionConNombres,
 } from '@/lib/queries/sesiones'
 import { useClases, useCrearClaseConSesiones, type NuevaSesionInput } from '@/lib/queries/clases'
+import { useEliminarAsistencia, usePresentesSesion } from '@/lib/queries/asistencias'
 
 export function Calendario() {
   const [mesActual, setMesActual] = useState(() => startOfMonth(new Date()))
@@ -65,9 +66,7 @@ export function Calendario() {
 
   return (
     <div className="space-y-6">
-      <ClasesEnCursoBanner />
-
-      <ComisionesPanel />
+      <ClasesEnCursoBanner onSeleccionar={setSesionSeleccionada} />
 
       <Card>
         <div className="mb-4 flex items-center justify-between">
@@ -167,7 +166,7 @@ export function Calendario() {
   )
 }
 
-function ClasesEnCursoBanner() {
+function ClasesEnCursoBanner({ onSeleccionar }: { onSeleccionar: (s: SesionConNombres) => void }) {
   const hoy = format(new Date(), 'yyyy-MM-dd')
   const { data: sesionesHoy } = useSesionesEnRango(hoy, hoy)
   const [horaActual, setHoraActual] = useState(() => format(new Date(), 'HH:mm:ss'))
@@ -184,7 +183,13 @@ function ClasesEnCursoBanner() {
   return (
     <div className="space-y-4">
       {activas.map((s) => (
-        <Card key={s.id} className="border-brand-400/30 bg-gradient-to-br from-brand-500/10 to-accent-400/10">
+        <Card
+          key={s.id}
+          role="button"
+          tabIndex={0}
+          onClick={() => onSeleccionar(s)}
+          className="cursor-pointer border-brand-400/30 bg-gradient-to-br from-brand-500/10 to-accent-400/10 transition-colors hover:border-brand-400/50"
+        >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Badge tone="brand" className="mb-2">
@@ -195,8 +200,9 @@ function ClasesEnCursoBanner() {
               <p className="text-sm text-white/60">
                 {s.comisiones.map((c) => c.nombre).join(' + ')} · {formatHora(s.hora_inicio)} a {formatHora(s.hora_fin)}
               </p>
+              <p className="mt-1 text-xs text-white/35">Tocá la tarjeta para ver presentes, editar o generar el código</p>
             </div>
-            <div className="w-full sm:w-64">
+            <div className="w-full sm:w-64" onClick={(e) => e.stopPropagation()}>
               <GeneradorCodigo sesionId={s.id} enHorario />
             </div>
           </div>
@@ -238,59 +244,45 @@ function GeneradorCodigo({ sesionId, enHorario }: { sesionId: string; enHorario:
   )
 }
 
-function ComisionesPanel() {
-  const { data: comisiones } = useComisiones()
-  const crear = useCrearComision()
-  const eliminar = useEliminarComision()
-  const [nombre, setNombre] = useState('')
-
-  function handleAdd(e: React.FormEvent) {
-    e.preventDefault()
-    if (!nombre.trim()) return
-    crear.mutate(nombre, {
-      onSuccess: () => setNombre(''),
-      onError: () => toast.error('No se pudo crear la comisión (¿ya existe?)'),
-    })
-  }
+function ListaPresentes({ sesionId }: { sesionId: string }) {
+  const { data: presentes, isLoading } = usePresentesSesion(sesionId)
+  const eliminar = useEliminarAsistencia()
 
   return (
-    <Card>
-      <CardTitle>Comisiones</CardTitle>
-      <CardSubtitle>Ej: 2S1, 2S2, 2Q1…</CardSubtitle>
-      <form onSubmit={handleAdd} className="mt-4 flex gap-2">
-        <input
-          className="input-field"
-          placeholder="Nombre de la comisión"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-        />
-        <Button type="submit" loading={crear.isPending}>
-          <Plus className="size-4" />
-        </Button>
-      </form>
-      {comisiones && comisiones.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {comisiones.map((c) => (
-            <span
-              key={c.id}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 py-1 pl-3 pr-1.5 text-sm text-white/80"
-            >
-              {c.nombre}
+    <div>
+      <p className="mb-2 text-sm font-medium text-white/70">Presentes {presentes ? `(${presentes.length})` : ''}</p>
+      {isLoading ? (
+        <p className="text-sm text-white/40">Cargando…</p>
+      ) : !presentes || presentes.length === 0 ? (
+        <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-white/40">Todavía no hay nadie presente.</p>
+      ) : (
+        <div className="max-h-56 space-y-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+          {presentes.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 hover:bg-white/5">
+              <div>
+                <p className="text-sm text-white">
+                  {p.apellido}, {p.nombre}
+                </p>
+                <p className="text-xs text-white/40">
+                  Legajo {p.legajo}
+                  {p.comision_nombre ? ` · ${p.comision_nombre}` : ''}
+                  {p.metodo === 'manual' ? ' · manual' : ''}
+                </p>
+              </div>
               <button
                 onClick={() => {
-                  if (confirm(`¿Eliminar la comisión ${c.nombre}? Los alumnos quedan sin comisión asignada.`)) {
-                    eliminar.mutate(c.id)
-                  }
+                  if (confirm('¿Quitar esta asistencia?')) eliminar.mutate(p.id)
                 }}
-                className="rounded-full p-1 text-white/40 hover:bg-white/10 hover:text-danger-500"
+                className="rounded-full p-1.5 text-white/30 hover:bg-white/10 hover:text-danger-500"
+                aria-label="Quitar asistencia"
               >
-                <X className="size-3" />
+                <X className="size-3.5" />
               </button>
-            </span>
+            </div>
           ))}
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -485,6 +477,8 @@ function ModalSesion({
         </div>
 
         <GeneradorCodigo sesionId={sesion.id} enHorario={enHorario} />
+
+        <ListaPresentes sesionId={sesion.id} />
 
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={onEditar}>

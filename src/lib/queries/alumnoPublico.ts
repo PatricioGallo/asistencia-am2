@@ -35,12 +35,12 @@ export function useSesionActiva() {
   return query
 }
 
-export function useAlumnoStats() {
+export function useBuscarAlumnos() {
   return useMutation({
-    mutationFn: async (legajo: string) => {
-      const { data, error } = await supabase.rpc('alumno_stats', { p_legajo: legajo })
+    mutationFn: async (query: string) => {
+      const { data, error } = await supabase.rpc('buscar_alumnos', { p_query: query })
       if (error) throw error
-      return data?.[0] ?? null
+      return data ?? []
     },
   })
 }

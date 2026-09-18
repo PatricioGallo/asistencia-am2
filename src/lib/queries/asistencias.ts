@@ -86,6 +86,50 @@ export function useAsistenciaComision(comisionId: string | null) {
   })
 }
 
+export interface PresenteSesion {
+  id: string
+  alumno_id: string
+  legajo: string
+  nombre: string
+  apellido: string
+  comision_nombre: string | null
+  metodo: 'codigo' | 'manual'
+}
+
+/** Alumnos presentes en una sesión puntual (pueden ser de cualquier comisión). */
+export function usePresentesSesion(sesionId: string | null) {
+  return useQuery({
+    queryKey: ['presentes-sesion', sesionId],
+    enabled: !!sesionId,
+    queryFn: async (): Promise<PresenteSesion[]> => {
+      const { data, error } = await supabase
+        .from('asistencias')
+        .select('id, alumno_id, metodo, creado_at, alumnos(legajo, nombre, apellido, comisiones(nombre))')
+        .eq('sesion_id', sesionId!)
+        .order('creado_at')
+      if (error) throw error
+
+      return (data ?? []).map((a) => {
+        const al = a.alumnos as unknown as {
+          legajo: string
+          nombre: string
+          apellido: string
+          comisiones: { nombre: string } | null
+        } | null
+        return {
+          id: a.id,
+          alumno_id: a.alumno_id,
+          legajo: al?.legajo ?? '',
+          nombre: al?.nombre ?? '',
+          apellido: al?.apellido ?? '',
+          comision_nombre: al?.comisiones?.nombre ?? null,
+          metodo: a.metodo as 'codigo' | 'manual',
+        }
+      })
+    },
+  })
+}
+
 export function useCargarAsistenciaManual() {
   const { session } = useAuth()
   const qc = useQueryClient()
@@ -102,6 +146,7 @@ export function useCargarAsistenciaManual() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['asistencia-comision'] })
+      qc.invalidateQueries({ queryKey: ['presentes-sesion'] })
     },
   })
 }
@@ -114,6 +159,9 @@ export function useEliminarAsistencia() {
       const { error } = await supabase.from('asistencias').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['asistencia-comision'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['asistencia-comision'] })
+      qc.invalidateQueries({ queryKey: ['presentes-sesion'] })
+    },
   })
 }

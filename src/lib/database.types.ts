@@ -93,16 +93,15 @@ export interface SesionActivaRow {
   expira_at: string | null
 }
 
-export interface AlumnoStatsRow {
-  ok: boolean
-  mensaje: string
-  alumno_id: string | null
-  nombre: string | null
-  apellido: string | null
+export interface BuscarAlumnosRow {
+  alumno_id: string
+  legajo: string
+  nombre: string
+  apellido: string
   comision_nombre: string | null
-  presentes: number | null
-  total_clases: number | null
-  porcentaje: number | null
+  presentes: number
+  total_clases: number
+  porcentaje: number
 }
 
 export interface RegistrarAsistenciaRow {
@@ -195,9 +194,9 @@ export interface Database {
         Args: Record<PropertyKey, never>
         Returns: SesionActivaRow[]
       }
-      alumno_stats: {
-        Args: { p_legajo: string }
-        Returns: AlumnoStatsRow[]
+      buscar_alumnos: {
+        Args: { p_query: string }
+        Returns: BuscarAlumnosRow[]
       }
       registrar_asistencia: {
         Args: { p_legajo: string; p_codigo: string }

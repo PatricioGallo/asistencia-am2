@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { Badge } from '@/components/ui/Badge'
 import { cn, formatHora, formatPorcentaje } from '@/lib/utils'
-import { useAlumnoStats, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
-import type { AlumnoStatsRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
+import { useBuscarAlumnos, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
+import type { BuscarAlumnosRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
 
 export function HomeAlumno() {
   const { data: sesiones, isLoading } = useSesionActiva()
@@ -108,33 +108,53 @@ function ClaseEnCurso({ sesion }: { sesion: SesionActivaRow }) {
 
 function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
   const [legajo, setLegajo] = useState('')
+  const [candidatos, setCandidatos] = useState<BuscarAlumnosRow[]>([])
+  const [buscado, setBuscado] = useState(false)
+  const [seleccionado, setSeleccionado] = useState<BuscarAlumnosRow | null>(null)
   const [codigo, setCodigo] = useState('')
-  const [stats, setStats] = useState<AlumnoStatsRow | null>(null)
   const [resultado, setResultado] = useState<RegistrarAsistenciaRow | null>(null)
   const [expirado, setExpirado] = useState(false)
 
-  const buscarStats = useAlumnoStats()
+  const buscar = useBuscarAlumnos()
   const registrar = useRegistrarAsistencia()
 
   useEffect(() => {
     const legajoTrim = legajo.trim()
-    if (legajoTrim.length < 2) {
-      setStats(null)
+    if (legajoTrim.length < 3) {
+      setCandidatos([])
+      setBuscado(false)
       return
     }
     const id = setTimeout(() => {
-      buscarStats.mutate(legajoTrim, { onSuccess: setStats })
+      buscar.mutate(legajoTrim, {
+        onSuccess: (rows) => {
+          setCandidatos(rows)
+          setBuscado(true)
+        },
+      })
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, 500)
+    }, 400)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [legajo])
 
+  function elegirAlumno(a: BuscarAlumnosRow) {
+    setSeleccionado(a)
+    setCandidatos([])
+  }
+
+  function cambiarAlumno() {
+    setSeleccionado(null)
+    setLegajo('')
+    setCandidatos([])
+    setBuscado(false)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!legajo.trim() || !codigo.trim() || expirado) return
+    if (!seleccionado || !codigo.trim() || expirado) return
     registrar.mutate(
-      { legajo: legajo.trim(), codigo: codigo.trim() },
+      { legajo: seleccionado.legajo, codigo: codigo.trim() },
       { onSuccess: setResultado },
     )
   }
@@ -168,46 +188,83 @@ function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-white/70">Tu legajo</label>
-          <div className="relative">
-            <input
-              className="input-field pr-10"
-              value={legajo}
-              onChange={(e) => {
-                setLegajo(e.target.value)
-                setStats(null)
-              }}
-              placeholder="Ej: 123456"
-              inputMode="numeric"
-              autoComplete="off"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30">
-              {buscarStats.isPending ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-            </span>
-          </div>
 
-          {stats && (
+          {seleccionado ? (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-brand-400/40 bg-brand-500/10 p-3"
             >
-              {stats.ok ? (
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-white">
-                      {stats.nombre} {stats.apellido}
-                    </p>
-                    <p className="text-xs text-white/45">{stats.comision_nombre}</p>
-                  </div>
-                  <div className="flex gap-4 text-right">
-                    <Stat compact label="Presentes" value={`${stats.presentes}/${stats.total_clases}`} />
-                    <Stat compact label="%" value={formatPorcentaje(stats.porcentaje ?? 0)} />
-                  </div>
+              <div>
+                <p className="font-medium text-white">
+                  {seleccionado.nombre} {seleccionado.apellido}
+                </p>
+                <p className="text-xs text-white/45">
+                  Legajo {seleccionado.legajo} · {seleccionado.comision_nombre}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-4 text-right">
+                  <Stat compact label="Presentes" value={`${seleccionado.presentes}/${seleccionado.total_clases}`} />
+                  <Stat compact label="%" value={formatPorcentaje(seleccionado.porcentaje)} />
                 </div>
-              ) : (
-                <p className="text-sm text-danger-500">{stats.mensaje}</p>
-              )}
+                <button
+                  type="button"
+                  onClick={cambiarAlumno}
+                  className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-white"
+                  aria-label="No soy yo, cambiar"
+                  title="No soy yo"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+              </div>
             </motion.div>
+          ) : (
+            <>
+              <div className="relative">
+                <input
+                  className="input-field pr-10"
+                  value={legajo}
+                  onChange={(e) => setLegajo(e.target.value)}
+                  placeholder="Ej: 123456"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  autoFocus
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30">
+                  {buscar.isPending ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+                </span>
+              </div>
+
+              {candidatos.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
+                >
+                  {candidatos.map((a) => (
+                    <button
+                      key={a.alumno_id}
+                      type="button"
+                      onClick={() => elegirAlumno(a)}
+                      className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors hover:bg-white/5"
+                    >
+                      <div>
+                        <p className="font-medium text-white">
+                          {a.nombre} {a.apellido}
+                        </p>
+                        <p className="text-xs text-white/45">Legajo {a.legajo}</p>
+                      </div>
+                      <span className="text-xs text-white/40">Soy yo →</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+
+              {buscado && !buscar.isPending && candidatos.length === 0 && legajo.trim().length >= 3 && (
+                <p className="mt-2 text-sm text-danger-500">No encontramos ningún alumno con ese legajo.</p>
+              )}
+            </>
           )}
         </div>
 
@@ -216,11 +273,11 @@ function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
           <div className="relative">
             <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/30" />
             <input
-              className="input-field pl-10 text-center font-display text-lg tracking-[0.3em] uppercase"
+              className="input-field pl-10 text-center font-display text-lg tracking-widest uppercase"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.toUpperCase())}
-              placeholder="ABC123"
-              maxLength={6}
+              placeholder="INTEGRAL"
+              maxLength={12}
               autoComplete="off"
             />
           </div>
@@ -233,7 +290,7 @@ function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
           type="submit"
           className="w-full"
           loading={registrar.isPending}
-          disabled={expirado || !stats?.ok || !codigo.trim()}
+          disabled={expirado || !seleccionado || !codigo.trim()}
         >
           Confirmar asistencia
         </Button>

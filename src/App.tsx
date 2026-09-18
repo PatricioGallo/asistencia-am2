@@ -8,6 +8,7 @@ const LoginAdmin = lazy(() => import('@/pages/LoginAdmin').then((m) => ({ defaul
 const Calendario = lazy(() => import('@/pages/admin/Calendario').then((m) => ({ default: m.Calendario })))
 const MisAlumnos = lazy(() => import('@/pages/admin/MisAlumnos').then((m) => ({ default: m.MisAlumnos })))
 const Asistencia = lazy(() => import('@/pages/admin/Asistencia').then((m) => ({ default: m.Asistencia })))
+const Configuracion = lazy(() => import('@/pages/admin/Configuracion').then((m) => ({ default: m.Configuracion })))
 
 function AdminFallback() {
   return <div className="flex min-h-[60vh] items-center justify-center text-white/50">Cargando…</div>
@@ -63,6 +64,16 @@ export default function App() {
             <ProtectedRoute>
               <Suspense fallback={<AdminFallback />}>
                 <Asistencia />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/configuracion"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<AdminFallback />}>
+                <Configuracion />
               </Suspense>
             </ProtectedRoute>
           }
