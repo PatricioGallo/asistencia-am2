@@ -117,6 +117,12 @@ select option {
     box-shadow: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+  }
+
+  /* Solo el contenedor con scroll horizontal necesita mostrarse entero acá;
+     los divs con "truncate" (ej: nombre corto de TP en el header) tienen que
+     seguir recortando texto, si no la columna se desborda igual que en pantalla. */
+  .print-area .overflow-x-auto {
     overflow: visible !important;
   }
 

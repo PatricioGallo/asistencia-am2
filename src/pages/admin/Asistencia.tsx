@@ -27,6 +27,7 @@ export function Asistencia() {
   const { data, isLoading } = useAsistenciaComision(comisionId || null)
   const { data: config } = useConfiguracionProfesor()
   const eliminar = useEliminarAsistencia()
+  const cargar = useCargarAsistenciaManual()
   const confirm = useConfirm()
 
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
@@ -85,8 +86,10 @@ export function Asistencia() {
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
                   <th className="sticky left-0 bg-surface-800 px-5 py-3 font-medium">Alumno</th>
                   {data.columnas.map((col) => (
-                    <th key={`${col.sesion_id}`} className="whitespace-nowrap px-3 py-3 text-center font-medium">
-                      <div>{col.clase_nombre}</div>
+                    <th key={`${col.sesion_id}`} className="max-w-20 px-3 py-3 text-center font-medium">
+                      <div className="truncate" title={col.clase_nombre}>
+                        {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
+                      </div>
                       <div className="font-normal normal-case text-white/30">{formatFecha(col.fecha)}</div>
                     </th>
                   ))}
@@ -127,9 +130,19 @@ export function Asistencia() {
                               <Check className="size-3.5" />
                             </button>
                           ) : (
-                            <span className="inline-flex size-6 items-center justify-center rounded-full bg-white/5 text-white/20">
+                            <button
+                              title="Marcar presente"
+                              disabled={cargar.isPending}
+                              onClick={() =>
+                                cargar.mutate(
+                                  { alumno_id: a.alumno_id, sesion_id: col.sesion_id, clase_id: col.clase_id },
+                                  { onError: () => toast.error('No se pudo marcar presente') },
+                                )
+                              }
+                              className="inline-flex size-6 items-center justify-center rounded-full bg-white/5 text-white/20 hover:bg-ok-500/20 hover:text-ok-500 disabled:pointer-events-none disabled:opacity-50"
+                            >
                               <X className="size-3.5" />
-                            </span>
+                            </button>
                           )}
                         </td>
                       )
