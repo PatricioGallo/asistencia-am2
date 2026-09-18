@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format, subYears, addYears } from 'date-fns'
-import { Check, ClipboardList, Plus, X } from 'lucide-react'
+import { Check, ClipboardList, FileDown, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { cn, formatFecha, formatPorcentaje } from '@/lib/utils'
 import { useComisiones } from '@/lib/queries/comisiones'
 import { useAlumnos } from '@/lib/queries/alumnos'
 import { useSesionesEnRango } from '@/lib/queries/sesiones'
 import { useAsistenciaComision, useCargarAsistenciaManual, useEliminarAsistencia } from '@/lib/queries/asistencias'
+import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 
 export function Asistencia() {
   const { data: comisiones } = useComisiones()
@@ -23,17 +25,20 @@ export function Asistencia() {
   }, [comisiones, comisionId])
 
   const { data, isLoading } = useAsistenciaComision(comisionId || null)
+  const { data: config } = useConfiguracionProfesor()
   const eliminar = useEliminarAsistencia()
+  const confirm = useConfirm()
 
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
+  const porcentajeRequerido = config?.porcentaje_requerido ?? 75
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle>Asistencia</CardTitle>
-            <CardSubtitle>Se necesita 75% de presencia para aprobar la cursada</CardSubtitle>
+            <CardSubtitle>Se necesita {porcentajeRequerido}% de presencia para aprobar la cursada</CardSubtitle>
           </div>
           <div className="flex flex-wrap gap-2">
             <select className="input-field w-auto" value={comisionId} onChange={(e) => setComisionId(e.target.value)}>
@@ -43,6 +48,10 @@ export function Asistencia() {
                 </option>
               ))}
             </select>
+            <Button variant="secondary" onClick={() => window.print()} disabled={!comisionId || !data}>
+              <FileDown className="size-4" />
+              Descargar PDF
+            </Button>
             <Button onClick={() => setModalManual(true)}>
               <Plus className="size-4" />
               Carga manual
@@ -51,7 +60,15 @@ export function Asistencia() {
         </div>
       </Card>
 
-      <Card className="p-0">
+      <div className="print-area hidden print:block">
+        <h1 className="text-xl font-bold">Asistencia — {comisionNombre}</h1>
+        <p className="text-sm">
+          Se necesita {porcentajeRequerido}% de presencia para aprobar la cursada · Generado el{' '}
+          {format(new Date(), 'dd/MM/yyyy')}
+        </p>
+      </div>
+
+      <Card className="print-area p-0">
         {!comisionId ? (
           <p className="p-10 text-center text-white/40">Creá una comisión para empezar.</p>
         ) : isLoading ? (
@@ -75,7 +92,7 @@ export function Asistencia() {
                   ))}
                   <th className="px-3 py-3 text-center font-medium">Presentes</th>
                   <th className="px-3 py-3 text-center font-medium">%</th>
-                  <th className="px-5 py-3 text-center font-medium">75%</th>
+                  <th className="px-5 py-3 text-center font-medium">{porcentajeRequerido}%</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,8 +117,8 @@ export function Asistencia() {
                                     ? 'Cargado manualmente'
                                     : 'Presente'
                               }
-                              onClick={() => {
-                                if (confirm('¿Quitar esta asistencia?')) eliminar.mutate(celda.id)
+                              onClick={async () => {
+                                if (await confirm('¿Quitar esta asistencia?')) eliminar.mutate(celda.id)
                               }}
                               className={cn(
                                 'inline-flex size-6 items-center justify-center rounded-full bg-ok-500/15 text-ok-500 hover:bg-danger-500/20 hover:text-danger-500',
@@ -122,7 +139,7 @@ export function Asistencia() {
                     </td>
                     <td className="px-3 py-3 text-center font-medium text-white">{formatPorcentaje(a.porcentaje)}</td>
                     <td className="px-5 py-3 text-center">
-                      <Badge tone={a.cumple_75 ? 'ok' : 'danger'}>{a.cumple_75 ? 'Cumple' : 'No cumple'}</Badge>
+                      <Badge tone={a.cumple_minimo ? 'ok' : 'danger'}>{a.cumple_minimo ? 'Cumple' : 'No cumple'}</Badge>
                     </td>
                   </tr>
                 ))}

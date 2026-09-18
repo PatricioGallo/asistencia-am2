@@ -23,6 +23,8 @@ create table profesores (
   email text not null,
   nombre text,
   mostrar_horarios boolean not null default false,
+  duracion_codigo_segundos int not null default 60 check (duracion_codigo_segundos between 10 and 600),
+  porcentaje_requerido int not null default 75 check (porcentaje_requerido between 1 and 100),
   created_at timestamptz not null default now()
 );
 
@@ -173,9 +175,10 @@ select
   end as porcentaje,
   case
     when coalesce(tc.total_clases, 0) = 0 then true
-    else (100.0 * coalesce(pr.presentes, 0) / tc.total_clases) >= 75
-  end as cumple_75
+    else (100.0 * coalesce(pr.presentes, 0) / tc.total_clases) >= p.porcentaje_requerido
+  end as cumple_minimo
 from alumnos a
+join profesores p on p.id = a.profesor_id
 left join comisiones co on co.id = a.comision_id
 left join lateral (
   -- Total de TPs dados por el profesor hasta hoy, sin filtrar por comisión:
@@ -280,7 +283,8 @@ returns table (
   hora_inicio time,
   hora_fin time,
   codigo_activo boolean,
-  expira_at timestamptz
+  expira_at timestamptz,
+  duracion_codigo_segundos int
 )
 language sql
 security definer
@@ -302,14 +306,16 @@ as $$
       where c.sesion_id = s.id and c.expira_at > now()
       order by c.expira_at desc
       limit 1
-    ) as expira_at
+    ) as expira_at,
+    p.duracion_codigo_segundos
   from sesiones s
   join clases cl on cl.id = s.clase_id
+  join profesores p on p.id = s.profesor_id
   join sesion_comisiones sc on sc.sesion_id = s.id
   join comisiones co on co.id = sc.comision_id
   where s.fecha = current_date
     and now()::time between s.hora_inicio and s.hora_fin
-  group by s.id, cl.nombre, s.hora_inicio, s.hora_fin
+  group by s.id, cl.nombre, s.hora_inicio, s.hora_fin, p.duracion_codigo_segundos
   order by s.hora_inicio;
 $$;
 

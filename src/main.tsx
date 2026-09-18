@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import './index.css'
 import { SetupRequired } from './SetupRequired.tsx'
+import { ConfirmProvider } from '@/components/ui/ConfirmDialog'
 
 const root = createRoot(document.getElementById('root')!)
 const hasSupabaseConfig = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -28,8 +29,10 @@ if (!hasSupabaseConfig) {
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <AuthProvider>
-              <App />
-              <Toaster theme="dark" position="top-center" richColors closeButton />
+              <ConfirmProvider>
+                <App />
+                <Toaster theme="dark" position="top-center" richColors closeButton />
+              </ConfirmProvider>
             </AuthProvider>
           </BrowserRouter>
         </QueryClientProvider>

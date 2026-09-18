@@ -117,16 +117,17 @@ export function useGenerarCodigo() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async (sesionId: string) => {
+    mutationFn: async ({ sesionId, duracionSegundos }: { sesionId: string; duracionSegundos: number }) => {
+      const expiraAt = new Date(Date.now() + duracionSegundos * 1000).toISOString()
       const { data, error } = await supabase
         .from('codigos')
-        .insert({ profesor_id: session!.user.id, sesion_id: sesionId, codigo: generarCodigo() })
+        .insert({ profesor_id: session!.user.id, sesion_id: sesionId, codigo: generarCodigo(), expira_at: expiraAt })
         .select()
         .single()
       if (error) throw error
       return data
     },
-    onSuccess: (_data, sesionId) => {
+    onSuccess: (_data, { sesionId }) => {
       qc.invalidateQueries({ queryKey: ['codigo-activo', sesionId] })
     },
   })

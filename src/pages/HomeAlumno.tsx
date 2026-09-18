@@ -140,13 +140,15 @@ function ClaseEnCurso({ sesion }: { sesion: SesionActivaRow }) {
       </Card>
 
       {sesion.codigo_activo && sesion.expira_at ? (
-        <FormularioAsistencia expiraAt={sesion.expira_at} />
+        <FormularioAsistencia expiraAt={sesion.expira_at} duracionSegundos={sesion.duracion_codigo_segundos} />
       ) : (
         <Card className="flex flex-col items-center gap-3 text-center">
           <Clock className="size-8 animate-pulse text-white/30" />
           <div>
             <p className="font-medium text-white/80">Esperando el código del profesor</p>
-            <p className="mt-1 text-sm text-white/45">Cuando lo compartan, vas a tener 60 segundos para cargarlo.</p>
+            <p className="mt-1 text-sm text-white/45">
+              Cuando lo compartan, vas a tener {sesion.duracion_codigo_segundos} segundos para cargarlo.
+            </p>
           </div>
         </Card>
       )}
@@ -154,7 +156,7 @@ function ClaseEnCurso({ sesion }: { sesion: SesionActivaRow }) {
   )
 }
 
-function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
+function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string; duracionSegundos: number }) {
   const [legajo, setLegajo] = useState('')
   const [candidatos, setCandidatos] = useState<BuscarAlumnosRow[]>([])
   const [buscado, setBuscado] = useState(false)
@@ -230,7 +232,7 @@ function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
   return (
     <Card>
       <div className="mb-4 flex items-center justify-center">
-        <CountdownRing expiraAt={expiraAt} onExpire={() => setExpirado(true)} />
+        <CountdownRing expiraAt={expiraAt} totalSeconds={duracionSegundos} onExpire={() => setExpirado(true)} />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

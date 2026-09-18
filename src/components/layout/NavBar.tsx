@@ -26,7 +26,7 @@ export function NavBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-bg-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-white/5 bg-bg-950/80 backdrop-blur-xl print:hidden">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <LogoMark />

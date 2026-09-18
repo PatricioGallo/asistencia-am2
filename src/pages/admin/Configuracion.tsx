@@ -1,24 +1,32 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { ComisionChips } from '@/components/ComisionChips'
 import { DIAS_SEMANA, formatHora } from '@/lib/utils'
 import { useComisiones, useCrearComision, useEliminarComision } from '@/lib/queries/comisiones'
+import { useCrearHorario, useEliminarHorario, useHorarios } from '@/lib/queries/horarios'
 import {
+  useActualizarDuracionCodigo,
   useActualizarMostrarHorarios,
-  useCrearHorario,
-  useEliminarHorario,
-  useHorarios,
-  useMostrarHorarios,
-} from '@/lib/queries/horarios'
+  useActualizarPorcentajeRequerido,
+  useConfiguracionProfesor,
+} from '@/lib/queries/configuracionProfesor'
+
+const DURACION_MIN = 10
+const DURACION_MAX = 600
+const PORCENTAJE_MIN = 1
+const PORCENTAJE_MAX = 100
 
 export function Configuracion() {
   return (
     <div className="space-y-6">
       <ComisionesPanel />
+      <DuracionCodigoPanel />
+      <PorcentajeRequeridoPanel />
       <MostrarHorariosToggle />
       <HorariosPanel />
     </div>
@@ -29,6 +37,7 @@ function ComisionesPanel() {
   const { data: comisiones } = useComisiones()
   const crear = useCrearComision()
   const eliminar = useEliminarComision()
+  const confirm = useConfirm()
   const [nombre, setNombre] = useState('')
 
   function handleAdd(e: React.FormEvent) {
@@ -64,8 +73,8 @@ function ComisionesPanel() {
             >
               {c.nombre}
               <button
-                onClick={() => {
-                  if (confirm(`¿Eliminar la comisión ${c.nombre}? Los alumnos quedan sin comisión asignada.`)) {
+                onClick={async () => {
+                  if (await confirm(`¿Eliminar la comisión ${c.nombre}? Los alumnos quedan sin comisión asignada.`)) {
                     eliminar.mutate(c.id)
                   }
                 }}
@@ -81,10 +90,98 @@ function ComisionesPanel() {
   )
 }
 
+function DuracionCodigoPanel() {
+  const { data: config, isLoading } = useConfiguracionProfesor()
+  const actualizar = useActualizarDuracionCodigo()
+  const [segundos, setSegundos] = useState('')
+
+  useEffect(() => {
+    if (config) setSegundos(String(config.duracion_codigo_segundos))
+  }, [config])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const valor = Math.trunc(Number(segundos))
+    if (!Number.isFinite(valor) || valor < DURACION_MIN || valor > DURACION_MAX) {
+      return toast.error(`Elegí un valor entre ${DURACION_MIN} y ${DURACION_MAX} segundos`)
+    }
+    actualizar.mutate(valor, {
+      onSuccess: () => toast.success('Duración actualizada'),
+      onError: () => toast.error('No se pudo guardar'),
+    })
+  }
+
+  return (
+    <Card>
+      <CardTitle>Duración del código</CardTitle>
+      <CardSubtitle>Cuánto tiempo tienen los alumnos para cargar el código antes de que expire.</CardSubtitle>
+      <form onSubmit={handleSubmit} className="mt-4 flex items-end gap-2">
+        <Input
+          label="Segundos"
+          type="number"
+          min={DURACION_MIN}
+          max={DURACION_MAX}
+          value={segundos}
+          disabled={isLoading}
+          onChange={(e) => setSegundos(e.target.value)}
+          className="max-w-32"
+        />
+        <Button type="submit" loading={actualizar.isPending} className="mb-0.5">
+          Guardar
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+function PorcentajeRequeridoPanel() {
+  const { data: config, isLoading } = useConfiguracionProfesor()
+  const actualizar = useActualizarPorcentajeRequerido()
+  const [porcentaje, setPorcentaje] = useState('')
+
+  useEffect(() => {
+    if (config) setPorcentaje(String(config.porcentaje_requerido))
+  }, [config])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const valor = Math.trunc(Number(porcentaje))
+    if (!Number.isFinite(valor) || valor < PORCENTAJE_MIN || valor > PORCENTAJE_MAX) {
+      return toast.error(`Elegí un valor entre ${PORCENTAJE_MIN} y ${PORCENTAJE_MAX}`)
+    }
+    actualizar.mutate(valor, {
+      onSuccess: () => toast.success('Porcentaje actualizado'),
+      onError: () => toast.error('No se pudo guardar'),
+    })
+  }
+
+  return (
+    <Card>
+      <CardTitle>Asistencia requerida</CardTitle>
+      <CardSubtitle>Porcentaje mínimo de presencia para aprobar la cursada.</CardSubtitle>
+      <form onSubmit={handleSubmit} className="mt-4 flex items-end gap-2">
+        <Input
+          label="Porcentaje"
+          type="number"
+          min={PORCENTAJE_MIN}
+          max={PORCENTAJE_MAX}
+          value={porcentaje}
+          disabled={isLoading}
+          onChange={(e) => setPorcentaje(e.target.value)}
+          className="max-w-32"
+        />
+        <Button type="submit" loading={actualizar.isPending} className="mb-0.5">
+          Guardar
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
 function MostrarHorariosToggle() {
-  const { data: mostrar, isLoading } = useMostrarHorarios()
+  const { data: config, isLoading } = useConfiguracionProfesor()
   const actualizar = useActualizarMostrarHorarios()
-  const checked = mostrar ?? false
+  const checked = config?.mostrar_horarios ?? false
 
   return (
     <Card>
@@ -116,8 +213,8 @@ function MostrarHorariosToggle() {
 }
 
 function HorariosPanel() {
-  const { data: mostrar } = useMostrarHorarios()
-  if (!mostrar) return null
+  const { data: config } = useConfiguracionProfesor()
+  if (!config?.mostrar_horarios) return null
 
   return (
     <Card>
@@ -197,6 +294,7 @@ function FormNuevoHorario() {
 function ListaHorarios() {
   const { data: horarios } = useHorarios()
   const eliminar = useEliminarHorario()
+  const confirm = useConfirm()
 
   if (!horarios || horarios.length === 0) {
     return (
@@ -221,8 +319,8 @@ function ListaHorarios() {
             </span>
           </p>
           <button
-            onClick={() => {
-              if (confirm('¿Eliminar este horario?')) eliminar.mutate(h.id)
+            onClick={async () => {
+              if (await confirm('¿Eliminar este horario?')) eliminar.mutate(h.id)
             }}
             className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-danger-500"
             aria-label="Eliminar horario"

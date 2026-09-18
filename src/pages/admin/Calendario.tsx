@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { ComisionChips } from '@/components/ComisionChips'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { cn, formatHora } from '@/lib/utils'
@@ -33,6 +34,7 @@ import {
 } from '@/lib/queries/sesiones'
 import { useClases, useCrearClaseConSesiones, type NuevaSesionInput } from '@/lib/queries/clases'
 import { useEliminarAsistencia, usePresentesSesion } from '@/lib/queries/asistencias'
+import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 
 export function Calendario() {
   const [mesActual, setMesActual] = useState(() => startOfMonth(new Date()))
@@ -215,12 +217,14 @@ function ClasesEnCursoBanner({ onSeleccionar }: { onSeleccionar: (s: SesionConNo
 
 function GeneradorCodigo({ sesionId, enHorario }: { sesionId: string; enHorario: boolean }) {
   const { data: codigoActivo } = useCodigoActivo(sesionId)
+  const { data: config } = useConfiguracionProfesor()
   const generar = useGenerarCodigo()
+  const duracionSegundos = config?.duracion_codigo_segundos ?? 60
 
   if (codigoActivo) {
     return (
       <div className="flex flex-col items-center gap-3 py-1">
-        <CountdownRing expiraAt={codigoActivo.expira_at} size={110} />
+        <CountdownRing expiraAt={codigoActivo.expira_at} totalSeconds={duracionSegundos} size={110} />
         <div className="text-center">
           <p className="text-xs uppercase tracking-wide text-white/40">Código para compartir</p>
           <p className="font-display text-2xl font-bold tracking-[0.3em] text-white">{codigoActivo.codigo}</p>
@@ -231,9 +235,13 @@ function GeneradorCodigo({ sesionId, enHorario }: { sesionId: string; enHorario:
 
   if (enHorario) {
     return (
-      <Button className="w-full" loading={generar.isPending} onClick={() => generar.mutate(sesionId)}>
+      <Button
+        className="w-full"
+        loading={generar.isPending}
+        onClick={() => generar.mutate({ sesionId, duracionSegundos })}
+      >
         <KeyRound className="size-4" />
-        Generar código (60s)
+        Generar código ({duracionSegundos}s)
       </Button>
     )
   }
@@ -248,6 +256,7 @@ function GeneradorCodigo({ sesionId, enHorario }: { sesionId: string; enHorario:
 function ListaPresentes({ sesionId }: { sesionId: string }) {
   const { data: presentes, isLoading } = usePresentesSesion(sesionId)
   const eliminar = useEliminarAsistencia()
+  const confirm = useConfirm()
 
   return (
     <div>
@@ -271,8 +280,8 @@ function ListaPresentes({ sesionId }: { sesionId: string }) {
                 </p>
               </div>
               <button
-                onClick={() => {
-                  if (confirm('¿Quitar esta asistencia?')) eliminar.mutate(p.id)
+                onClick={async () => {
+                  if (await confirm('¿Quitar esta asistencia?')) eliminar.mutate(p.id)
                 }}
                 className="rounded-full p-1.5 text-white/30 hover:bg-white/10 hover:text-danger-500"
                 aria-label="Quitar asistencia"
@@ -420,6 +429,7 @@ function ModalSesion({
   onEditar: () => void
 }) {
   const eliminar = useEliminarSesion()
+  const confirm = useConfirm()
 
   const ahora = new Date()
   const hoyIso = format(ahora, 'yyyy-MM-dd')
@@ -453,8 +463,8 @@ function ModalSesion({
           <Button
             variant="danger"
             className="flex-1"
-            onClick={() => {
-              if (confirm('¿Eliminar esta sesión? También se borran las asistencias cargadas para ella.')) {
+            onClick={async () => {
+              if (await confirm('¿Eliminar esta sesión? También se borran las asistencias cargadas para ella.')) {
                 eliminar.mutate(sesion.id, { onSuccess: onClose })
               }
             }}

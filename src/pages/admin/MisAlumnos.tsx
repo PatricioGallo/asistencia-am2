@@ -6,6 +6,7 @@ import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useComisiones, useCrearComision } from '@/lib/queries/comisiones'
 import {
   useActualizarAlumno,
@@ -26,6 +27,7 @@ export function MisAlumnos() {
   const { data: comisiones } = useComisiones()
   const { data: alumnos, isLoading } = useAlumnos({ busqueda, comisionId })
   const eliminar = useEliminarAlumno()
+  const confirm = useConfirm()
 
   return (
     <div className="space-y-6">
@@ -104,8 +106,8 @@ export function MisAlumnos() {
                           <Pencil className="size-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`¿Eliminar a ${a.nombre} ${a.apellido}?`)) eliminar.mutate(a.id)
+                          onClick={async () => {
+                            if (await confirm(`¿Eliminar a ${a.nombre} ${a.apellido}?`)) eliminar.mutate(a.id)
                           }}
                           className="rounded-xl p-2 text-white/40 hover:bg-white/10 hover:text-danger-500"
                         >

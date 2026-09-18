@@ -93,3 +93,41 @@ select option {
     @apply w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/35 outline-none transition-colors focus:border-brand-400/70 focus:ring-2 focus:ring-brand-400/20;
   }
 }
+
+/* Vista de impresión (ej: planilla de asistencia para el bedel): la app es
+   dark-mode-only, así que forzamos texto negro sobre blanco acá en vez de
+   pelear con cada utilidad de opacidad (text-white/40, bg-white/[0.03], etc.)
+   una por una. */
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .print-area,
+  .print-area * {
+    color: black !important;
+    background: transparent !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+  }
+
+  .print-area table {
+    font-size: 10px;
+    border-collapse: collapse;
+  }
+
+  .print-area th,
+  .print-area td {
+    border: 1px solid #d1d5db !important;
+    padding: 4px 6px !important;
+  }
+}

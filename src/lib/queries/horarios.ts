@@ -75,35 +75,3 @@ export function useEliminarHorario() {
   })
 }
 
-export function useMostrarHorarios() {
-  const { session } = useAuth()
-  const profesorId = session?.user.id
-
-  return useQuery({
-    queryKey: ['mostrar-horarios', profesorId],
-    enabled: !!profesorId,
-    queryFn: async (): Promise<boolean> => {
-      const { data, error } = await supabase
-        .from('profesores')
-        .select('mostrar_horarios')
-        .eq('id', profesorId!)
-        .single()
-      if (error) throw error
-      return data.mostrar_horarios
-    },
-  })
-}
-
-export function useActualizarMostrarHorarios() {
-  const { session } = useAuth()
-  const qc = useQueryClient()
-  const profesorId = session?.user.id
-
-  return useMutation({
-    mutationFn: async (mostrar: boolean) => {
-      const { error } = await supabase.from('profesores').update({ mostrar_horarios: mostrar }).eq('id', profesorId!)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['mostrar-horarios', profesorId] }),
-  })
-}

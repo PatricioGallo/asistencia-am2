@@ -8,6 +8,8 @@ export interface Profesor {
   email: string
   nombre: string | null
   mostrar_horarios: boolean
+  duracion_codigo_segundos: number
+  porcentaje_requerido: number
   created_at: string
 }
 
@@ -96,7 +98,7 @@ export interface VistaAsistenciaAlumno {
   total_clases: number
   presentes: number
   porcentaje: number
-  cumple_75: boolean
+  cumple_minimo: boolean
 }
 
 export interface SesionActivaRow {
@@ -107,6 +109,7 @@ export interface SesionActivaRow {
   hora_fin: string
   codigo_activo: boolean
   expira_at: string | null
+  duracion_codigo_segundos: number
 }
 
 export interface BuscarAlumnosRow {
