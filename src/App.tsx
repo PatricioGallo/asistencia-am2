@@ -4,6 +4,7 @@ import { NavBar } from '@/components/layout/NavBar'
 import { ProtectedRoute } from '@/lib/auth'
 import { HomeAlumno } from '@/pages/HomeAlumno'
 
+const MisAsistencias = lazy(() => import('@/pages/MisAsistencias').then((m) => ({ default: m.MisAsistencias })))
 const LoginAdmin = lazy(() => import('@/pages/LoginAdmin').then((m) => ({ default: m.LoginAdmin })))
 const Calendario = lazy(() => import('@/pages/admin/Calendario').then((m) => ({ default: m.Calendario })))
 const MisAlumnos = lazy(() => import('@/pages/admin/MisAlumnos').then((m) => ({ default: m.MisAlumnos })))
@@ -30,6 +31,14 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<HomeAlumno />} />
+        <Route
+          path="/mis-asistencias"
+          element={
+            <Suspense fallback={<AdminFallback />}>
+              <MisAsistencias />
+            </Suspense>
+          }
+        />
         <Route
           path="/admin/login"
           element={

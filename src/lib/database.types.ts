@@ -128,6 +128,26 @@ export interface HorarioPublicoRow {
   aula: string | null
 }
 
+export interface ClaseAsistidaJson {
+  clase_nombre: string
+  fecha: string
+  hora_inicio: string
+  hora_fin: string
+  metodo: Metodo
+}
+
+export interface MisAsistenciasRow {
+  alumno_id: string
+  legajo: string
+  nombre: string
+  apellido: string
+  comision_nombre: string | null
+  presentes: number
+  total_clases: number
+  porcentaje: number
+  clases: ClaseAsistidaJson[]
+}
+
 export interface RegistrarAsistenciaRow {
   ok: boolean
   mensaje: string
@@ -246,6 +266,10 @@ export interface Database {
       registrar_asistencia: {
         Args: { p_legajo: string; p_codigo: string }
         Returns: RegistrarAsistenciaRow[]
+      }
+      mis_asistencias: {
+        Args: { p_legajo: string }
+        Returns: MisAsistenciasRow[]
       }
     }
   }

@@ -1,20 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  CalendarClock,
-  CheckCircle2,
-  ChevronLeft,
-  Clock,
-  GraduationCap,
-  KeyRound,
-  Loader2,
-  Search,
-  Sparkles,
-} from 'lucide-react'
+import { CalendarClock, CheckCircle2, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { Badge } from '@/components/ui/Badge'
+import { Stat } from '@/components/ui/Stat'
 import { cn, DIAS_SEMANA, formatHora, formatPorcentaje } from '@/lib/utils'
 import { useBuscarAlumnos, useHorariosPublicos, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
 import type { BuscarAlumnosRow, HorarioPublicoRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
@@ -353,14 +344,5 @@ function FormularioAsistencia({ expiraAt }: { expiraAt: string }) {
         </Button>
       </form>
     </Card>
-  )
-}
-
-function Stat({ label, value, compact }: { label: string; value: string; compact?: boolean }) {
-  return (
-    <div>
-      <p className={cn('font-display font-bold text-white', compact ? 'text-base' : 'text-2xl')}>{value}</p>
-      <p className="text-[11px] uppercase tracking-wide text-white/40">{label}</p>
-    </div>
   )
 }

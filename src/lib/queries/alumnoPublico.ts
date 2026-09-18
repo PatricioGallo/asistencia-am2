@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
-import type { HorarioPublicoRow, SesionActivaRow } from '../database.types'
+import type { HorarioPublicoRow, MisAsistenciasRow, SesionActivaRow } from '../database.types'
 
 const SESION_ACTIVA_KEY = ['sesion-activa']
 
@@ -51,6 +51,17 @@ export function useBuscarAlumnos() {
   return useMutation({
     mutationFn: async (query: string) => {
       const { data, error } = await supabase.rpc('buscar_alumnos', { p_query: query })
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/** Historial completo de asistencias de un alumno, por legajo exacto. Disponible en cualquier momento. */
+export function useMisAsistencias() {
+  return useMutation({
+    mutationFn: async (legajo: string): Promise<MisAsistenciasRow[]> => {
+      const { data, error } = await supabase.rpc('mis_asistencias', { p_legajo: legajo })
       if (error) throw error
       return data ?? []
     },

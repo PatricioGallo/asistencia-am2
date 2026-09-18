@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { CalendarDays, LogOut, ShieldCheck, Users, ClipboardList, Settings } from 'lucide-react'
+import { CalendarDays, ClipboardList, KeyRound, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { LogoMark } from '@/components/LogoMark'
@@ -9,6 +9,11 @@ const adminTabs = [
   { to: '/admin/alumnos', label: 'Mis alumnos', icon: Users },
   { to: '/admin/asistencia', label: 'Asistencia', icon: ClipboardList },
   { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
+]
+
+const alumnoTabs = [
+  { to: '/', label: 'Asistencia', icon: KeyRound, end: true },
+  { to: '/mis-asistencias', label: 'Mis asistencias', icon: ClipboardList, end: false },
 ]
 
 export function NavBar() {
@@ -54,10 +59,28 @@ export function NavBar() {
             </button>
           </nav>
         ) : (
-          <NavLink to="/admin/login" className="btn-secondary !px-4 !py-2 text-sm">
-            <ShieldCheck className="size-4" />
-            Docente
-          </NavLink>
+          <nav className="flex items-center gap-1 overflow-x-auto">
+            {alumnoTabs.map((tab) => (
+              <NavLink
+                key={tab.to}
+                to={tab.to}
+                end={tab.end}
+                className={({ isActive }) =>
+                  cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:text-white',
+                    isActive && 'bg-white/10 text-white',
+                  )
+                }
+              >
+                <tab.icon className="size-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </NavLink>
+            ))}
+            <NavLink to="/admin/login" className="btn-secondary !px-4 !py-2 text-sm ml-1 shrink-0">
+              <ShieldCheck className="size-4" />
+              <span className="hidden sm:inline">Docente</span>
+            </NavLink>
+          </nav>
         )}
       </div>
     </header>

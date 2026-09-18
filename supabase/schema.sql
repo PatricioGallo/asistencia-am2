@@ -178,10 +178,13 @@ select
 from alumnos a
 left join comisiones co on co.id = a.comision_id
 left join lateral (
-  select count(*) as total_clases
+  -- Total de TPs dados por el profesor hasta hoy, sin filtrar por comisión:
+  -- un alumno puede ir a la sesión de otra comisión (o a una clase conjunta)
+  -- y ese TP le cuenta igual. Se cuenta clase_id distinto para no duplicar
+  -- un TP que tiene una sesión por comisión.
+  select count(distinct s.clase_id) as total_clases
   from sesiones s
-  join sesion_comisiones sc on sc.sesion_id = s.id
-  where sc.comision_id = a.comision_id and s.fecha <= current_date
+  where s.profesor_id = a.profesor_id and s.fecha <= current_date
 ) tc on true
 left join lateral (
   select count(*) as presentes
@@ -456,3 +459,61 @@ end;
 $$;
 
 grant execute on function registrar_asistencia(text, text) to anon, authenticated;
+
+-- Historial de asistencia de un alumno por legajo exacto (no autocompleta ni
+-- lista por prefijo como buscar_alumnos: solo devuelve datos a quien ya
+-- conoce su propio legajo completo, y funciona en cualquier momento, no solo
+-- durante una clase en curso). Puede haber más de un resultado si el mismo
+-- legajo existe en distintos profesores.
+create function mis_asistencias(p_legajo text)
+returns table (
+  alumno_id uuid,
+  legajo text,
+  nombre text,
+  apellido text,
+  comision_nombre text,
+  presentes int,
+  total_clases int,
+  porcentaje numeric,
+  clases jsonb
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    v.alumno_id,
+    v.legajo,
+    v.nombre,
+    v.apellido,
+    v.comision_nombre,
+    v.presentes::int,
+    v.total_clases::int,
+    v.porcentaje,
+    coalesce(
+      (
+        select jsonb_agg(
+          jsonb_build_object(
+            'clase_nombre', cl.nombre,
+            'fecha', s.fecha,
+            'hora_inicio', s.hora_inicio,
+            'hora_fin', s.hora_fin,
+            'metodo', a.metodo
+          )
+          order by s.fecha, s.hora_inicio
+        )
+        from asistencias a
+        join sesiones s on s.id = a.sesion_id
+        join clases cl on cl.id = a.clase_id
+        where a.alumno_id = v.alumno_id
+      ),
+      '[]'::jsonb
+    ) as clases
+  from vista_asistencia_alumno v
+  join alumnos al on al.id = v.alumno_id
+  where lower(al.legajo) = lower(trim(p_legajo))
+  order by v.apellido, v.nombre;
+$$;
+
+grant execute on function mis_asistencias(text) to anon, authenticated;
