@@ -114,6 +114,18 @@ input[type="time"]::-webkit-datetime-edit {
   .input-field {
     @apply w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/35 outline-none transition-colors focus:border-brand-400/70 focus:ring-2 focus:ring-brand-400/20;
   }
+
+  /* Columna fija (position: sticky) de una tabla con scroll horizontal: no
+     puede ser translúcida como el resto de un .glass-panel (al hacer scroll
+     se transparentaría lo que pasa por detrás), pero un color plano lisa
+     como bg-bg-900 desentona muy fuerte contra el panel borroso/con tinte de
+     color que la rodea, se ve como un recuadro negro pegado encima. Este color
+     sólido ya incluye ese tinte, así que a simple vista se integra igual.
+     Ver también .table-sticky-head para el <th>. */
+  .table-sticky-col {
+    @apply sticky left-0 z-10 border-r border-white/10;
+    background-color: color-mix(in oklab, var(--color-accent-500) 7%, var(--color-bg-900));
+  }
 }
 
 /* Vista de impresión (ej: planilla de asistencia para el bedel): la app es

@@ -69,7 +69,7 @@ export function Asistencia() {
         </p>
       </div>
 
-      <Card className="print-area p-0">
+      <Card className="print-area overflow-hidden p-0">
         {!comisionId ? (
           <p className="p-10 text-center text-white/40">Creá una comisión para empezar.</p>
         ) : isLoading ? (
@@ -84,7 +84,7 @@ export function Asistencia() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
-                  <th className="sticky left-0 bg-surface-800 px-5 py-3 font-medium">Alumno</th>
+                  <th className="table-sticky-col px-5 py-3 font-medium">Alumno</th>
                   {data.columnas.map((col) => (
                     <th
                       key={`${col.sesion_id}`}
@@ -107,7 +107,7 @@ export function Asistencia() {
               <tbody>
                 {data.alumnos.map((a) => (
                   <tr key={a.alumno_id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                    <td className="sticky left-0 bg-bg-900 px-5 py-3 text-white">
+                    <td className="table-sticky-col px-5 py-3 text-white">
                       <div className="font-medium">
                         {a.apellido}, {a.nombre}
                       </div>
