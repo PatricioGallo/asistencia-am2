@@ -93,7 +93,7 @@ export function Calendario() {
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wide text-white/35">
+        <div className="hidden grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wide text-white/35 sm:grid">
           {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((d) => (
             <div key={d} className="py-1">
               {d}
@@ -101,7 +101,7 @@ export function Calendario() {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        <div className="hidden grid-cols-7 gap-1 sm:grid">
           {dias.map((dia) => {
             const iso = format(dia, 'yyyy-MM-dd')
             const eventos = sesionesPorDia.get(iso) ?? []
@@ -143,6 +143,63 @@ export function Calendario() {
               </button>
             )
           })}
+        </div>
+
+        {/* En pantallas chicas la grilla de 7 columnas queda ilegible (nombre de
+            clase truncado en una celda de ~40px), así que el mes se muestra como
+            una agenda vertical: un renglón por día, con las clases completas. */}
+        <div className="flex flex-col divide-y divide-white/5 sm:hidden">
+          {dias
+            .filter((dia) => isSameMonth(dia, mesActual))
+            .map((dia) => {
+              const iso = format(dia, 'yyyy-MM-dd')
+              const eventos = sesionesPorDia.get(iso) ?? []
+              return (
+                <button
+                  key={iso}
+                  onClick={() => setModalNuevaClase(iso)}
+                  className={cn(
+                    'flex w-full items-start gap-3 py-3 text-left transition-colors hover:bg-white/5',
+                    isToday(dia) && 'bg-white/[0.03]',
+                  )}
+                >
+                  <div className="flex w-11 shrink-0 flex-col items-center gap-0.5">
+                    <span
+                      className={cn(
+                        'flex size-8 items-center justify-center rounded-full text-sm font-semibold text-white/60',
+                        isToday(dia) && 'bg-gradient-to-br from-brand-500 to-accent-400 text-white',
+                      )}
+                    >
+                      {format(dia, 'd')}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wide text-white/30">
+                      {format(dia, 'EEE', { locale: es })}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1.5">
+                    {eventos.length === 0 ? (
+                      <span className="text-sm text-white/25">Sin clases</span>
+                    ) : (
+                      eventos.map((ev) => (
+                        <span
+                          key={ev.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSesionSeleccionada(ev)
+                          }}
+                          className="rounded-lg bg-brand-500/15 px-2.5 py-1.5 text-sm font-medium text-brand-400 hover:bg-brand-500/25"
+                        >
+                          {ev.clases?.nombre} · {ev.comisiones.map((c) => c.nombre).join(' + ')} ·{' '}
+                          {formatHora(ev.hora_inicio)}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </button>
+              )
+            })}
         </div>
       </Card>
 
