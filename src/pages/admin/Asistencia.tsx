@@ -86,8 +86,14 @@ export function Asistencia() {
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
                   <th className="sticky left-0 bg-surface-800 px-5 py-3 font-medium">Alumno</th>
                   {data.columnas.map((col) => (
-                    <th key={`${col.sesion_id}`} className="max-w-20 px-3 py-3 text-center font-medium">
-                      <div className="truncate" title={col.clase_nombre}>
+                    <th
+                      key={`${col.sesion_id}`}
+                      className={cn('max-w-20 px-3 py-3 text-center font-medium', !col.dada && 'opacity-40')}
+                    >
+                      <div
+                        className="truncate"
+                        title={col.dada ? col.clase_nombre : `${col.clase_nombre} · no se tomó asistencia, no cuenta`}
+                      >
                         {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
                       </div>
                       <div className="font-normal normal-case text-white/30">{formatFecha(col.fecha)}</div>
@@ -111,7 +117,14 @@ export function Asistencia() {
                       const celda = data.celdas[`${a.alumno_id}:${col.clase_id}`]
                       return (
                         <td key={col.sesion_id} className="px-3 py-3 text-center">
-                          {celda?.presente ? (
+                          {!celda?.presente && !col.dada ? (
+                            <span
+                              title="No se tomó asistencia en esta clase (no cuenta para el porcentaje)"
+                              className="inline-flex size-6 items-center justify-center text-white/20"
+                            >
+                              —
+                            </span>
+                          ) : celda?.presente ? (
                             <button
                               title={
                                 celda.comisionAsistida

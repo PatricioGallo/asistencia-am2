@@ -8,6 +8,8 @@ export interface ColumnaClase {
   clase_nombre: string
   fecha: string
   sesion_id: string
+  /** false = el profesor nunca generó código ni cargó asistencia para esta sesión (feriado, paro, etc.): no cuenta para el porcentaje. */
+  dada: boolean
 }
 
 export interface CeldaAsistencia {
@@ -42,16 +44,36 @@ export function useAsistenciaComision(comisionId: string | null) {
       if (errAlumnos) throw errAlumnos
       if (errSesiones) throw errSesiones
 
-      const columnas: ColumnaClase[] = (sesionesComision ?? [])
+      const sesionesBase = (sesionesComision ?? [])
         .map((sc) => sc.sesiones as unknown as { id: string; fecha: string; clase_id: string; clases: { nombre: string } | null })
         .filter((s): s is NonNullable<typeof s> => s != null)
         .sort((a, b) => a.fecha.localeCompare(b.fecha))
-        .map((s) => ({
-          clase_id: s.clase_id,
-          clase_nombre: s.clases?.nombre ?? '—',
-          fecha: s.fecha,
-          sesion_id: s.id,
-        }))
+
+      const sesionIds = sesionesBase.map((s) => s.id)
+      const sesionesDadas = new Set<string>()
+
+      if (sesionIds.length > 0) {
+        // Una sesión "cuenta" si se generó un código para ella o si hay alguna
+        // asistencia cargada (de cualquier alumno, aunque sea de otra comisión
+        // en una clase conjunta). Si no pasó ninguna de las dos, el profesor
+        // nunca la dio (feriado, paro, etc.) y se muestra con un guion.
+        const [{ data: codigosRows, error: errCodigos }, { data: asistSesionRows, error: errAsistSesion }] = await Promise.all([
+          supabase.from('codigos').select('sesion_id').in('sesion_id', sesionIds),
+          supabase.from('asistencias').select('sesion_id').in('sesion_id', sesionIds),
+        ])
+        if (errCodigos) throw errCodigos
+        if (errAsistSesion) throw errAsistSesion
+        for (const c of codigosRows ?? []) sesionesDadas.add(c.sesion_id)
+        for (const a of asistSesionRows ?? []) sesionesDadas.add(a.sesion_id)
+      }
+
+      const columnas: ColumnaClase[] = sesionesBase.map((s) => ({
+        clase_id: s.clase_id,
+        clase_nombre: s.clases?.nombre ?? '—',
+        fecha: s.fecha,
+        sesion_id: s.id,
+        dada: sesionesDadas.has(s.id),
+      }))
 
       const alumnoIds = (alumnos ?? []).map((a) => a.alumno_id)
       const celdas: Record<string, CeldaAsistencia> = {}

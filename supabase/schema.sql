@@ -185,9 +185,18 @@ left join lateral (
   -- un alumno puede ir a la sesión de otra comisión (o a una clase conjunta)
   -- y ese TP le cuenta igual. Se cuenta clase_id distinto para no duplicar
   -- un TP que tiene una sesión por comisión.
+  -- Una sesión sólo cuenta como "dada" si el profesor generó un código para
+  -- ella o si hay alguna asistencia cargada (manual o por código): si nunca
+  -- pasó ninguna de las dos (feriado, paro, clase que no se pudo dar), no
+  -- entra en el total de nadie.
   select count(distinct s.clase_id) as total_clases
   from sesiones s
-  where s.profesor_id = a.profesor_id and s.fecha <= current_date
+  where s.profesor_id = a.profesor_id
+    and s.fecha <= current_date
+    and (
+      exists (select 1 from codigos c where c.sesion_id = s.id)
+      or exists (select 1 from asistencias asi2 where asi2.sesion_id = s.id)
+    )
 ) tc on true
 left join lateral (
   select count(*) as presentes
