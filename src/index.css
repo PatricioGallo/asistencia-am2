@@ -71,6 +71,28 @@ select option {
   color: #e7eaf6;
 }
 
+/* En iOS, <input type="time"> usa un renderizado nativo cuyo tamaño de fuente
+   se auto-ajusta según el ancho disponible del input (achicándose en grillas
+   angostas, agrandándose en modales), ignorando nuestro padding/alto de
+   .input-field. Sacamos el appearance nativo para que el valor se dibuje como
+   texto normal (tamaño fijo y alineado a la izquierda) y quede consistente en
+   cualquier layout; el selector de rueda nativo se sigue abriendo al tocar.*/
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 3rem;
+}
+
+input[type="time"]::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+}
+
+input[type="time"]::-webkit-datetime-edit {
+  display: flex;
+  align-items: center;
+}
+
 /* Reusable design primitives, layered so Tailwind utility classes can still override them */
 @layer components {
   .glass-panel {
