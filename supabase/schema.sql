@@ -25,6 +25,7 @@ create table profesores (
   mostrar_horarios boolean not null default false,
   duracion_codigo_segundos int not null default 60 check (duracion_codigo_segundos between 10 and 600),
   porcentaje_requerido int not null default 75 check (porcentaje_requerido between 1 and 100),
+  nota_aprobacion numeric(4,2) not null default 4 check (nota_aprobacion between 1 and 10),
   created_at timestamptz not null default now()
 );
 
@@ -120,6 +121,38 @@ create table asistencias (
   unique (alumno_id, clase_id)
 );
 
+-- Notas de los dos parciales y las dos recuperaciones. Una fila por alumno
+-- (no por comisión ni por sesión: los parciales son del curso, no de una
+-- clase puntual). Si desaprueba un solo parcial, la recuperación 1 recupera
+-- ese; si vuelve a desaprobar, la recuperación 2 recupera el mismo. Si
+-- desaprueba los dos, ambas recuperaciones son el integral (ver
+-- src/lib/notas.ts, tipoRecuperatorio/calcularEstadoNotas: no hace falta
+-- guardar cuál es cuál, se deduce de las notas de los parciales).
+-- parcial_N_ausente / recuperatorio_N_ausente: el alumno no rindió esa
+-- instancia (distinto de no haberla cargado todavía: null). Un ausente
+-- cuenta como desaprobado a todos los efectos (recupera igual que si
+-- hubiera rendido y desaprobado, ver src/lib/notas.ts), pero se muestra
+-- como "A" en vez de una nota.
+create table notas_parciales (
+  id uuid primary key default gen_random_uuid(),
+  profesor_id uuid not null references profesores (id) on delete cascade,
+  alumno_id uuid not null references alumnos (id) on delete cascade,
+  parcial_1 numeric(4,2) check (parcial_1 is null or parcial_1 between 0 and 10),
+  parcial_1_ausente boolean not null default false,
+  parcial_2 numeric(4,2) check (parcial_2 is null or parcial_2 between 0 and 10),
+  parcial_2_ausente boolean not null default false,
+  recuperatorio_1 numeric(4,2) check (recuperatorio_1 is null or recuperatorio_1 between 0 and 10),
+  recuperatorio_1_ausente boolean not null default false,
+  recuperatorio_2 numeric(4,2) check (recuperatorio_2 is null or recuperatorio_2 between 0 and 10),
+  recuperatorio_2_ausente boolean not null default false,
+  actualizado_at timestamptz not null default now(),
+  unique (alumno_id),
+  check (not (parcial_1_ausente and parcial_1 is not null)),
+  check (not (parcial_2_ausente and parcial_2 is not null)),
+  check (not (recuperatorio_1_ausente and recuperatorio_1 is not null)),
+  check (not (recuperatorio_2_ausente and recuperatorio_2 is not null))
+);
+
 create index idx_alumnos_comision on alumnos (comision_id);
 create index idx_sesiones_fecha on sesiones (fecha);
 create index idx_sesiones_clase on sesiones (clase_id);
@@ -129,6 +162,7 @@ create index idx_horario_comisiones_comision on horario_comisiones (comision_id)
 create index idx_codigos_sesion_expira on codigos (sesion_id, expira_at);
 create index idx_asistencias_alumno on asistencias (alumno_id);
 create index idx_asistencias_sesion on asistencias (sesion_id);
+create index idx_notas_parciales_alumno on notas_parciales (alumno_id);
 
 -- =========================================================================
 -- Alta automática de "profesor" cuando creás el usuario en Supabase Auth
@@ -222,6 +256,7 @@ alter table horarios enable row level security;
 alter table horario_comisiones enable row level security;
 alter table codigos enable row level security;
 alter table asistencias enable row level security;
+alter table notas_parciales enable row level security;
 
 create policy "profesor lee su propio perfil"
   on profesores for select
@@ -273,6 +308,11 @@ create policy "profesor administra sus codigos"
 
 create policy "profesor administra sus asistencias"
   on asistencias for all
+  using (profesor_id = auth.uid())
+  with check (profesor_id = auth.uid());
+
+create policy "profesor administra sus notas_parciales"
+  on notas_parciales for all
   using (profesor_id = auth.uid())
   with check (profesor_id = auth.uid());
 

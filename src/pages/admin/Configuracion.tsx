@@ -12,14 +12,18 @@ import { useCrearHorario, useEliminarHorario, useHorarios } from '@/lib/queries/
 import {
   useActualizarDuracionCodigo,
   useActualizarMostrarHorarios,
+  useActualizarNotaAprobacion,
   useActualizarPorcentajeRequerido,
   useConfiguracionProfesor,
 } from '@/lib/queries/configuracionProfesor'
+import { formatNota } from '@/lib/utils'
 
 const DURACION_MIN = 10
 const DURACION_MAX = 600
 const PORCENTAJE_MIN = 1
 const PORCENTAJE_MAX = 100
+const NOTA_MIN = 1
+const NOTA_MAX = 10
 
 export function Configuracion() {
   return (
@@ -27,6 +31,7 @@ export function Configuracion() {
       <ComisionesPanel />
       <DuracionCodigoPanel />
       <PorcentajeRequeridoPanel />
+      <NotaAprobacionPanel />
       <MostrarHorariosToggle />
       <HorariosPanel />
     </div>
@@ -168,6 +173,51 @@ function PorcentajeRequeridoPanel() {
           value={porcentaje}
           disabled={isLoading}
           onChange={(e) => setPorcentaje(e.target.value)}
+          className="max-w-32"
+        />
+        <Button type="submit" loading={actualizar.isPending} className="mb-0.5">
+          Guardar
+        </Button>
+      </form>
+    </Card>
+  )
+}
+
+function NotaAprobacionPanel() {
+  const { data: config, isLoading } = useConfiguracionProfesor()
+  const actualizar = useActualizarNotaAprobacion()
+  const [nota, setNota] = useState('')
+
+  useEffect(() => {
+    if (config) setNota(formatNota(config.nota_aprobacion))
+  }, [config])
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const valor = Number(nota.replace(',', '.'))
+    if (!Number.isFinite(valor) || valor < NOTA_MIN || valor > NOTA_MAX) {
+      return toast.error(`Elegí un valor entre ${NOTA_MIN} y ${NOTA_MAX}`)
+    }
+    actualizar.mutate(valor, {
+      onSuccess: () => toast.success('Nota de aprobación actualizada'),
+      onError: () => toast.error('No se pudo guardar'),
+    })
+  }
+
+  return (
+    <Card>
+      <CardTitle>Parciales</CardTitle>
+      <CardSubtitle>Nota mínima para aprobar un parcial, una recuperación o el integral.</CardSubtitle>
+      <form onSubmit={handleSubmit} className="mt-4 flex items-end gap-2">
+        <Input
+          label="Nota de aprobación"
+          type="number"
+          min={NOTA_MIN}
+          max={NOTA_MAX}
+          step={0.5}
+          value={nota}
+          disabled={isLoading}
+          onChange={(e) => setNota(e.target.value)}
           className="max-w-32"
         />
         <Button type="submit" loading={actualizar.isPending} className="mb-0.5">

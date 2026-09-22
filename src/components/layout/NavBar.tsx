@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { CalendarDays, ClipboardList, KeyRound, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
+import { CalendarDays, ClipboardList, GraduationCap, KeyRound, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { LogoMark } from '@/components/LogoMark'
@@ -8,6 +8,7 @@ const adminTabs = [
   { to: '/admin/calendario', label: 'Calendario', icon: CalendarDays },
   { to: '/admin/alumnos', label: 'Mis alumnos', icon: Users },
   { to: '/admin/asistencia', label: 'Asistencia', icon: ClipboardList },
+  { to: '/admin/parciales', label: 'Parciales', icon: GraduationCap },
   { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
 ]
 

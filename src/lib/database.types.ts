@@ -10,6 +10,7 @@ export interface Profesor {
   mostrar_horarios: boolean
   duracion_codigo_segundos: number
   porcentaje_requerido: number
+  nota_aprobacion: number
   created_at: string
 }
 
@@ -85,6 +86,21 @@ export interface Asistencia {
   metodo: Metodo
   creado_at: string
   creado_por: string | null
+}
+
+export interface NotaParciales {
+  id: string
+  profesor_id: string
+  alumno_id: string
+  parcial_1: number | null
+  parcial_1_ausente: boolean
+  parcial_2: number | null
+  parcial_2_ausente: boolean
+  recuperatorio_1: number | null
+  recuperatorio_1_ausente: boolean
+  recuperatorio_2: number | null
+  recuperatorio_2_ausente: boolean
+  actualizado_at: string
 }
 
 export interface VistaAsistenciaAlumno {
@@ -244,6 +260,12 @@ export interface Database {
           metodo: Metodo
         }
         Update: Partial<Asistencia>
+        Relationships: []
+      }
+      notas_parciales: {
+        Row: NotaParciales
+        Insert: Partial<NotaParciales> & { profesor_id: string; alumno_id: string }
+        Update: Partial<NotaParciales>
         Relationships: []
       }
     }

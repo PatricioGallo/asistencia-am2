@@ -33,5 +33,10 @@ export function formatPorcentaje(n: number) {
   return `${Number.isInteger(n) ? n : n.toFixed(1)}%`
 }
 
+/** 6.50 -> "6.5", 4.00 -> "4" */
+export function formatNota(n: number) {
+  return String(parseFloat(n.toFixed(2)))
+}
+
 /** dia_semana 1..7 (lunes a domingo), como en la grilla del calendario. */
 export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']

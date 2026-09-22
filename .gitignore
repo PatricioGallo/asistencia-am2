@@ -27,3 +27,6 @@ dist-ssr
 
 .vercel
 .env*
+
+# Planillas de notas que Pato sube temporalmente para que las cargue
+nota_parciales

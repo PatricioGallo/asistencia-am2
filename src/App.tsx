@@ -9,6 +9,7 @@ const LoginAdmin = lazy(() => import('@/pages/LoginAdmin').then((m) => ({ defaul
 const Calendario = lazy(() => import('@/pages/admin/Calendario').then((m) => ({ default: m.Calendario })))
 const MisAlumnos = lazy(() => import('@/pages/admin/MisAlumnos').then((m) => ({ default: m.MisAlumnos })))
 const Asistencia = lazy(() => import('@/pages/admin/Asistencia').then((m) => ({ default: m.Asistencia })))
+const Parciales = lazy(() => import('@/pages/admin/Parciales').then((m) => ({ default: m.Parciales })))
 const Configuracion = lazy(() => import('@/pages/admin/Configuracion').then((m) => ({ default: m.Configuracion })))
 
 function AdminFallback() {
@@ -73,6 +74,16 @@ export default function App() {
             <ProtectedRoute>
               <Suspense fallback={<AdminFallback />}>
                 <Asistencia />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/parciales"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<AdminFallback />}>
+                <Parciales />
               </Suspense>
             </ProtectedRoute>
           }
