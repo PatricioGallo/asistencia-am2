@@ -173,13 +173,19 @@ export function Parciales() {
   )
 }
 
+/** Ausente va en naranja (warn): no es lo mismo que una nota realmente desaprobada (rojo). */
+function notaChipClass(nota: NotaValor, aprobado: boolean | null) {
+  if (nota === 'ausente') return 'bg-warn-500/15 text-warn-500'
+  return aprobado ? 'bg-ok-500/15 text-ok-500' : 'bg-danger-500/15 text-danger-500'
+}
+
 function NotaChip({ nota, aprobado }: { nota: NotaValor; aprobado: boolean | null }) {
   if (nota == null) return <span className="text-white/20">—</span>
   return (
     <span
       className={cn(
         'inline-flex min-w-9 items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold',
-        aprobado ? 'bg-ok-500/15 text-ok-500' : 'bg-danger-500/15 text-danger-500',
+        notaChipClass(nota, aprobado),
       )}
     >
       {formatNotaValor(nota)}
@@ -199,7 +205,7 @@ function RecuCelda({ tipo, nota, minimo }: { tipo: TipoRecuperatorio; nota: Nota
         <span
           className={cn(
             'inline-flex min-w-9 items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold',
-            aprobado ? 'bg-ok-500/15 text-ok-500' : 'bg-danger-500/15 text-danger-500',
+            notaChipClass(nota, aprobado),
           )}
         >
           {formatNotaValor(nota)}
