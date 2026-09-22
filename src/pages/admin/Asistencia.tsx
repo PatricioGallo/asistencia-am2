@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { cn, formatFecha, formatPorcentaje } from '@/lib/utils'
+import { cn, esIosStandalone, formatFecha, formatPorcentaje } from '@/lib/utils'
 import { useComisiones } from '@/lib/queries/comisiones'
 import { useAlumnos } from '@/lib/queries/alumnos'
 import { useSesionesEnRango } from '@/lib/queries/sesiones'
@@ -33,6 +33,15 @@ export function Asistencia() {
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
   const porcentajeRequerido = config?.porcentaje_requerido ?? 75
 
+  function handleDescargarPdf() {
+    if (esIosStandalone()) {
+      toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión ahí y tocá Descargar PDF.')
+      window.open(window.location.href, '_blank')
+      return
+    }
+    window.print()
+  }
+
   return (
     <div className="space-y-6">
       <Card className="print:hidden">
@@ -49,7 +58,7 @@ export function Asistencia() {
                 </option>
               ))}
             </select>
-            <Button variant="secondary" onClick={() => window.print()} disabled={!comisionId || !data}>
+            <Button variant="secondary" onClick={handleDescargarPdf} disabled={!comisionId || !data}>
               <FileDown className="size-4" />
               Descargar PDF
             </Button>

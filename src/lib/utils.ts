@@ -40,3 +40,14 @@ export function formatNota(n: number) {
 
 /** dia_semana 1..7 (lunes a domingo), como en la grilla del calendario. */
 export const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+/**
+ * iOS ignora window.print() en silencio cuando la web está instalada como
+ * PWA (display: standalone / "Agregar a inicio"): no tira error, simplemente
+ * no pasa nada. En Safari normal sí funciona. Android no tiene este problema.
+ */
+export function esIosStandalone() {
+  const esIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const esStandalone = (navigator as { standalone?: boolean }).standalone === true
+  return esIos && esStandalone
+}

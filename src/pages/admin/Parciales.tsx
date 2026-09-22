@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
-import { cn, formatNota, formatPorcentaje } from '@/lib/utils'
+import { cn, esIosStandalone, formatNota, formatPorcentaje } from '@/lib/utils'
 import {
   calcularEstadoNotas,
   formatNotaValor,
@@ -37,6 +37,15 @@ export function Parciales() {
 
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
 
+  function handleDescargarPdf() {
+    if (esIosStandalone()) {
+      toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión ahí y tocá Descargar PDF.')
+      window.open(window.location.href, '_blank')
+      return
+    }
+    window.print()
+  }
+
   return (
     <div className="space-y-6">
       <Card className="print:hidden">
@@ -53,7 +62,7 @@ export function Parciales() {
                 </option>
               ))}
             </select>
-            <Button variant="secondary" onClick={() => window.print()} disabled={!comisionId || !notas}>
+            <Button variant="secondary" onClick={handleDescargarPdf} disabled={!comisionId || !notas}>
               <FileDown className="size-4" />
               Descargar PDF
             </Button>
