@@ -106,9 +106,9 @@ export function Asistencia() {
                       <th
                         key={`${col.sesion_id}`}
                         className={cn(
-                          'max-w-20 px-3 py-3 text-center align-top font-medium',
+                          'max-w-20 whitespace-nowrap px-3 py-3 text-center align-top font-medium',
                           !col.dada && (futura ? 'opacity-25' : 'opacity-40'),
-                          col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/10',
+                          col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/15 pl-5',
                         )}
                       >
                         <div
@@ -123,7 +123,10 @@ export function Asistencia() {
                         >
                           {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
                         </div>
-                        <div className="font-normal normal-case text-white/30">{formatFecha(col.fecha)}</div>
+                        <div className="font-normal normal-case tracking-normal text-white/30" title={formatFecha(col.fecha)}>
+                          <span className="print:hidden">{formatFecha(col.fecha).slice(0, 5)}</span>
+                          <span className="hidden print:inline">{formatFecha(col.fecha)}</span>
+                        </div>
                         {!col.dada && !futura && (
                           <div className="text-[10px] font-normal normal-case tracking-normal text-white/40">sin clase</div>
                         )}
@@ -151,7 +154,7 @@ export function Asistencia() {
                           key={col.sesion_id}
                           className={cn(
                             'px-3 py-3 text-center',
-                            col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/10',
+                            col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/15 pl-5',
                           )}
                         >
                           {!celda?.presente && esFutura(col) ? (
