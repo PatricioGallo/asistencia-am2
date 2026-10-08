@@ -33,6 +33,12 @@ export function Asistencia() {
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
   const porcentajeRequerido = config?.porcentaje_requerido ?? 75
 
+  // Una columna no dada es "futura" si su fecha es hoy o posterior (todavía
+  // puede darse) y "sin clase" si ya pasó sin que se tomara asistencia.
+  const hoy = format(new Date(), 'yyyy-MM-dd')
+  const esFutura = (col: { fecha: string; dada: boolean }) => !col.dada && col.fecha >= hoy
+  const primeraFuturaId = data?.columnas.find(esFutura)?.sesion_id
+
   function handleDescargarPdf() {
     if (esIosStandalone()) {
       toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión ahí y tocá Descargar PDF.')
@@ -94,20 +100,36 @@ export function Asistencia() {
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
                   <th className="table-sticky-col px-5 py-3 font-medium">Alumno</th>
-                  {data.columnas.map((col) => (
-                    <th
-                      key={`${col.sesion_id}`}
-                      className={cn('max-w-20 px-3 py-3 text-center font-medium', !col.dada && 'opacity-40')}
-                    >
-                      <div
-                        className="truncate"
-                        title={col.dada ? col.clase_nombre : `${col.clase_nombre} · no se tomó asistencia, no cuenta`}
+                  {data.columnas.map((col) => {
+                    const futura = esFutura(col)
+                    return (
+                      <th
+                        key={`${col.sesion_id}`}
+                        className={cn(
+                          'max-w-20 px-3 py-3 text-center align-top font-medium',
+                          !col.dada && (futura ? 'opacity-25' : 'opacity-40'),
+                          col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/10',
+                        )}
                       >
-                        {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
-                      </div>
-                      <div className="font-normal normal-case text-white/30">{formatFecha(col.fecha)}</div>
-                    </th>
-                  ))}
+                        <div
+                          className="truncate"
+                          title={
+                            col.dada
+                              ? col.clase_nombre
+                              : futura
+                                ? `${col.clase_nombre} · todavía no se dio`
+                                : `${col.clase_nombre} · no se tomó asistencia, no cuenta`
+                          }
+                        >
+                          {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
+                        </div>
+                        <div className="font-normal normal-case text-white/30">{formatFecha(col.fecha)}</div>
+                        {!col.dada && !futura && (
+                          <div className="text-[10px] font-normal normal-case tracking-normal text-white/40">sin clase</div>
+                        )}
+                      </th>
+                    )
+                  })}
                   <th className="px-3 py-3 text-center font-medium">Presentes</th>
                   <th className="px-3 py-3 text-center font-medium">%</th>
                   <th className="px-5 py-3 text-center font-medium">{porcentajeRequerido}%</th>
@@ -125,8 +147,16 @@ export function Asistencia() {
                     {data.columnas.map((col) => {
                       const celda = data.celdas[`${a.alumno_id}:${col.clase_id}`]
                       return (
-                        <td key={col.sesion_id} className="px-3 py-3 text-center">
-                          {!celda?.presente && !col.dada ? (
+                        <td
+                          key={col.sesion_id}
+                          className={cn(
+                            'px-3 py-3 text-center',
+                            col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/10',
+                          )}
+                        >
+                          {!celda?.presente && esFutura(col) ? (
+                            <span title="Todavía no se dio esta clase" className="inline-flex size-6" />
+                          ) : !celda?.presente && !col.dada ? (
                             <span
                               title="No se tomó asistencia en esta clase (no cuenta para el porcentaje)"
                               className="inline-flex size-6 items-center justify-center text-white/20"
