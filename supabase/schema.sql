@@ -215,22 +215,32 @@ from alumnos a
 join profesores p on p.id = a.profesor_id
 left join comisiones co on co.id = a.comision_id
 left join lateral (
-  -- Total de TPs dados por el profesor hasta hoy, sin filtrar por comisión:
-  -- un alumno puede ir a la sesión de otra comisión (o a una clase conjunta)
-  -- y ese TP le cuenta igual. Se cuenta clase_id distinto para no duplicar
-  -- un TP que tiene una sesión por comisión.
+  -- Total de TPs que le cuentan al alumno hasta hoy: los que se dieron en
+  -- SU comisión, más los que haya asistido en otra (un alumno puede ir a la
+  -- sesión de otra comisión y ese TP le cuenta igual). Un TP dado solo en
+  -- otra comisión al que no fue NO le cuenta: si en su comisión no hubo
+  -- clase (paro, feriado) no es inasistencia aunque otra comisión sí la tuvo.
+  -- Se cuenta clase_id distinto para no duplicar un TP con varias sesiones.
   -- Una sesión sólo cuenta como "dada" si el profesor generó un código para
-  -- ella o si hay alguna asistencia cargada (manual o por código): si nunca
-  -- pasó ninguna de las dos (feriado, paro, clase que no se pudo dar), no
-  -- entra en el total de nadie.
-  select count(distinct s.clase_id) as total_clases
-  from sesiones s
-  where s.profesor_id = a.profesor_id
-    and s.fecha <= current_date
-    and (
-      exists (select 1 from codigos c where c.sesion_id = s.id)
-      or exists (select 1 from asistencias asi2 where asi2.sesion_id = s.id)
-    )
+  -- ella o si hay alguna asistencia cargada (manual o por código).
+  -- Alumnos sin comisión asignada: se usan las sesiones de todas.
+  select count(distinct t.clase_id) as total_clases
+  from (
+    select s.clase_id
+    from sesiones s
+    join sesion_comisiones sc on sc.sesion_id = s.id
+    where s.profesor_id = a.profesor_id
+      and s.fecha <= current_date
+      and (a.comision_id is null or sc.comision_id = a.comision_id)
+      and (
+        exists (select 1 from codigos c where c.sesion_id = s.id)
+        or exists (select 1 from asistencias asi2 where asi2.sesion_id = s.id)
+      )
+    union
+    select asi3.clase_id
+    from asistencias asi3
+    where asi3.alumno_id = a.id
+  ) t
 ) tc on true
 left join lateral (
   select count(*) as presentes
