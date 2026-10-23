@@ -11,6 +11,8 @@ export interface Profesor {
   duracion_codigo_segundos: number
   porcentaje_requerido: number
   nota_aprobacion: number
+  mostrar_parciales: boolean
+  dias_aviso_parciales: number
   created_at: string
 }
 
@@ -35,6 +37,7 @@ export interface Clase {
   id: string
   profesor_id: string
   nombre: string
+  pdf_path: string | null
   created_at: string
 }
 
@@ -103,6 +106,24 @@ export interface NotaParciales {
   actualizado_at: string
 }
 
+export interface FechaParcial {
+  id: string
+  profesor_id: string
+  nombre: string
+  fecha: string
+  hora: string | null
+  aula: string | null
+  created_at: string
+}
+
+export interface ProximoParcialRow {
+  id: string
+  nombre: string
+  fecha: string
+  hora: string | null
+  aula: string | null
+}
+
 export interface VistaAsistenciaAlumno {
   alumno_id: string
   profesor_id: string
@@ -120,6 +141,7 @@ export interface VistaAsistenciaAlumno {
 export interface SesionActivaRow {
   sesion_id: string
   clase_nombre: string
+  clase_pdf_path: string | null
   comision_nombre: string
   hora_inicio: string
   hora_fin: string
@@ -268,6 +290,12 @@ export interface Database {
         Update: Partial<NotaParciales>
         Relationships: []
       }
+      fechas_parciales: {
+        Row: FechaParcial
+        Insert: Partial<FechaParcial> & { profesor_id: string; nombre: string; fecha: string }
+        Update: Partial<FechaParcial>
+        Relationships: []
+      }
     }
     Views: {
       vista_asistencia_alumno: {
@@ -287,6 +315,10 @@ export interface Database {
       horarios_publicos: {
         Args: Record<PropertyKey, never>
         Returns: HorarioPublicoRow[]
+      }
+      proximos_parciales: {
+        Args: Record<PropertyKey, never>
+        Returns: ProximoParcialRow[]
       }
       registrar_asistencia: {
         Args: { p_legajo: string; p_codigo: string }

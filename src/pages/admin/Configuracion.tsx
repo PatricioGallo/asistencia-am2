@@ -6,17 +6,25 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { ComisionChips } from '@/components/ComisionChips'
-import { DIAS_SEMANA, formatHora } from '@/lib/utils'
+import { cn, DIAS_SEMANA, formatFecha, formatHora } from '@/lib/utils'
 import { useComisiones, useCrearComision, useEliminarComision } from '@/lib/queries/comisiones'
 import { useCrearHorario, useEliminarHorario, useHorarios } from '@/lib/queries/horarios'
 import {
+  useActualizarConfiguracionParciales,
   useActualizarDuracionCodigo,
   useActualizarMostrarHorarios,
   useActualizarNotaAprobacion,
   useActualizarPorcentajeRequerido,
+  useConfiguracionParciales,
   useConfiguracionProfesor,
 } from '@/lib/queries/configuracionProfesor'
 import { formatNota } from '@/lib/utils'
+import {
+  NOMBRES_SUGERIDOS_PARCIAL,
+  useCrearFechaParcial,
+  useEliminarFechaParcial,
+  useFechasParciales,
+} from '@/lib/queries/fechasParciales'
 
 const DURACION_MIN = 10
 const DURACION_MAX = 600
@@ -24,6 +32,14 @@ const PORCENTAJE_MIN = 1
 const PORCENTAJE_MAX = 100
 const NOTA_MIN = 1
 const NOTA_MAX = 10
+const AVISO_MIN = 0
+const AVISO_MAX = 365
+const AVISO_OPCIONES = [
+  { dias: 3, label: '3 días' },
+  { dias: 7, label: '1 semana' },
+  { dias: 14, label: '2 semanas' },
+  { dias: 30, label: '1 mes' },
+]
 
 export function Configuracion() {
   return (
@@ -32,6 +48,8 @@ export function Configuracion() {
       <DuracionCodigoPanel />
       <PorcentajeRequeridoPanel />
       <NotaAprobacionPanel />
+      <MostrarParcialesToggle />
+      <FechasParcialesPanel />
       <MostrarHorariosToggle />
       <HorariosPanel />
     </div>
@@ -374,6 +392,217 @@ function ListaHorarios() {
             }}
             className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-danger-500"
             aria-label="Eliminar horario"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MostrarParcialesToggle() {
+  const { data: config, isLoading } = useConfiguracionParciales()
+  const actualizar = useActualizarConfiguracionParciales()
+  const checked = config?.mostrar_parciales ?? false
+
+  return (
+    <Card>
+      <label className="flex cursor-pointer items-center justify-between gap-4">
+        <div>
+          <CardTitle>Mostrar fechas de parciales en la página principal</CardTitle>
+          <CardSubtitle>
+            Los alumnos van a ver las fechas de parciales y recuperaciones unos días antes de cada una.
+          </CardSubtitle>
+        </div>
+        <span className="relative inline-flex h-7 w-12 shrink-0 items-center">
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            checked={checked}
+            disabled={isLoading || actualizar.isPending}
+            onChange={(e) =>
+              actualizar.mutate(
+                { mostrar_parciales: e.target.checked },
+                { onError: () => toast.error('No se pudo guardar. ¿Corriste el SQL de fechas de parciales en Supabase?') },
+              )
+            }
+          />
+          <span className="absolute inset-0 rounded-full bg-white/15 transition-colors peer-checked:bg-brand-500 peer-disabled:opacity-50" />
+          <span className="absolute left-1 size-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+        </span>
+      </label>
+    </Card>
+  )
+}
+
+function FechasParcialesPanel() {
+  const { data: config } = useConfiguracionParciales()
+  if (!config?.mostrar_parciales) return null
+
+  return (
+    <Card>
+      <CardTitle>Fechas de parciales</CardTitle>
+      <CardSubtitle>Una sola fecha para todas las comisiones. Hora y aula son opcionales.</CardSubtitle>
+      <DiasAvisoParciales diasGuardados={config.dias_aviso_parciales} />
+      <FormNuevaFechaParcial />
+      <ListaFechasParciales />
+    </Card>
+  )
+}
+
+function DiasAvisoParciales({ diasGuardados }: { diasGuardados: number }) {
+  const actualizar = useActualizarConfiguracionParciales()
+  const [dias, setDias] = useState(String(diasGuardados))
+
+  useEffect(() => {
+    setDias(String(diasGuardados))
+  }, [diasGuardados])
+
+  function guardar(valor: number) {
+    if (!Number.isInteger(valor) || valor < AVISO_MIN || valor > AVISO_MAX) {
+      return toast.error(`Elegí un valor entre ${AVISO_MIN} y ${AVISO_MAX} días`)
+    }
+    actualizar.mutate(
+      { dias_aviso_parciales: valor },
+      {
+        onSuccess: () => toast.success('Aviso actualizado'),
+        onError: () => toast.error('No se pudo guardar'),
+      },
+    )
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    guardar(Number(dias))
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 p-3">
+      <span className="mb-1.5 block text-sm font-medium text-white/70">Mostrar el aviso desde</span>
+      <div className="flex flex-wrap items-center gap-2">
+        {AVISO_OPCIONES.map((o) => (
+          <button
+            key={o.dias}
+            type="button"
+            disabled={actualizar.isPending}
+            onClick={() => guardar(o.dias)}
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50',
+              diasGuardados === o.dias
+                ? 'border-brand-400/60 bg-brand-500/20 text-white'
+                : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
+            )}
+          >
+            {o.label} antes
+          </button>
+        ))}
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <input
+            type="number"
+            min={AVISO_MIN}
+            max={AVISO_MAX}
+            value={dias}
+            onChange={(e) => setDias(e.target.value)}
+            className="input-field w-20 py-1.5"
+            aria-label="Días antes"
+          />
+          <span className="text-xs text-white/50">días antes</span>
+          <Button type="submit" variant="secondary" loading={actualizar.isPending}>
+            Guardar
+          </Button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function FormNuevaFechaParcial() {
+  const crear = useCrearFechaParcial()
+  const [nombre, setNombre] = useState('')
+  const [fecha, setFecha] = useState('')
+  const [hora, setHora] = useState('')
+  const [aula, setAula] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!nombre.trim()) return toast.error('Poné un nombre (ej: 1er parcial)')
+    if (!fecha) return toast.error('Elegí la fecha')
+    crear.mutate(
+      { nombre: nombre.trim(), fecha, hora: hora || null, aula: aula.trim() || null },
+      {
+        onSuccess: () => {
+          setNombre('')
+          setFecha('')
+          setHora('')
+          setAula('')
+        },
+        onError: () => toast.error('No se pudo agregar la fecha'),
+      },
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-4 space-y-3 rounded-2xl border border-white/10 p-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Input
+          label="Nombre"
+          placeholder="Ej: 1er parcial"
+          list="nombres-parcial"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+        />
+        <datalist id="nombres-parcial">
+          {NOMBRES_SUGERIDOS_PARCIAL.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        <Input label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        <Input label="Hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
+        <Input label="Aula" placeholder="Ej: 302" value={aula} onChange={(e) => setAula(e.target.value)} />
+      </div>
+      <Button type="submit" loading={crear.isPending}>
+        <Plus className="size-4" />
+        Agregar fecha
+      </Button>
+    </form>
+  )
+}
+
+function ListaFechasParciales() {
+  const { data: fechas } = useFechasParciales()
+  const eliminar = useEliminarFechaParcial()
+  const confirm = useConfirm()
+
+  if (!fechas || fechas.length === 0) {
+    return (
+      <p className="mt-4 rounded-2xl bg-white/5 p-4 text-center text-sm text-white/40">
+        Todavía no cargaste ninguna fecha.
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-4 space-y-1.5">
+      {fechas.map((f) => (
+        <div
+          key={f.id}
+          className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
+        >
+          <p className="text-sm text-white">
+            <span className="font-medium">{f.nombre}</span>{' '}
+            <span className="text-white/60">
+              {formatFecha(f.fecha)}
+              {f.hora ? ` · ${formatHora(f.hora)}` : ''}
+              {f.aula ? ` · Aula ${f.aula}` : ''}
+            </span>
+          </p>
+          <button
+            onClick={async () => {
+              if (await confirm(`¿Eliminar la fecha "${f.nombre}"?`)) eliminar.mutate(f.id)
+            }}
+            className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-danger-500"
+            aria-label="Eliminar fecha"
           >
             <X className="size-3.5" />
           </button>

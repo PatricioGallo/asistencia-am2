@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   addDays,
   addMonths,
@@ -12,7 +12,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, KeyRound, Pencil, Plus, Sparkles, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, KeyRound, Pencil, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -35,6 +35,7 @@ import {
 import { useClases, useCrearClaseConSesiones, type NuevaSesionInput } from '@/lib/queries/clases'
 import { useEliminarAsistencia, usePresentesSesion } from '@/lib/queries/asistencias'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
+import { PDF_MAX_MB, urlVerPdf, useQuitarPdfClase, useSubirPdfClase, validarPdf } from '@/lib/queries/pdfTps'
 
 export function Calendario() {
   const [mesActual, setMesActual] = useState(() => startOfMonth(new Date()))
@@ -358,6 +359,8 @@ function ModalNuevaClase({ fechaInicial, onClose }: { fechaInicial: string; onCl
   const { data: clases } = useClases()
   const crearClase = useCrearClaseConSesiones()
   const [nombre, setNombre] = useState('')
+  const [pdf, setPdf] = useState<File | null>(null)
+  const claseExistente = clases?.find((c) => c.nombre === nombre.trim())
   const [filas, setFilas] = useState<NuevaSesionInput[]>([
     { comision_ids: [], fecha: fechaInicial, hora_inicio: '18:00', hora_fin: '20:00' },
   ])
@@ -382,10 +385,14 @@ function ModalNuevaClase({ fechaInicial, onClose }: { fechaInicial: string; onCl
     if (filas.some((f) => f.comision_ids.length === 0)) return toast.error('Elegí al menos una comisión en cada fila')
 
     crearClase.mutate(
-      { nombre, sesiones: filas },
+      { nombre, sesiones: filas, pdf },
       {
-        onSuccess: () => {
-          toast.success('Clase programada')
+        onSuccess: ({ pdfFallo }) => {
+          if (pdfFallo) {
+            toast.warning('La clase se programó, pero no se pudo subir el PDF. Probá de nuevo desde la clase en el calendario.')
+          } else {
+            toast.success('Clase programada')
+          }
           onClose()
         },
         onError: () => toast.error('No se pudo programar la clase'),
@@ -408,6 +415,16 @@ function ModalNuevaClase({ fechaInicial, onClose }: { fechaInicial: string; onCl
             <option key={c.id} value={c.nombre} />
           ))}
         </datalist>
+
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-white/70">PDF del TP (opcional)</span>
+          <SelectorPdf archivo={pdf} onChange={setPdf} />
+          <p className="mt-1.5 text-xs text-white/40">
+            {claseExistente?.pdf_path
+              ? 'Este TP ya tiene un PDF cargado. Si elegís otro, lo reemplaza.'
+              : 'Los alumnos lo van a poder descargar desde la página principal mientras la clase está en curso.'}
+          </p>
+        </div>
 
         <div className="space-y-3">
           <p className="text-sm font-medium text-white/70">Horarios</p>
@@ -510,6 +527,8 @@ function ModalSesion({
 
         <GeneradorCodigo sesionId={sesion.id} enHorario={enHorario} />
 
+        <PdfDeLaClase claseId={sesion.clase_id} pdfPath={sesion.clases?.pdf_path ?? null} />
+
         <ListaPresentes sesionId={sesion.id} />
 
         <div className="flex gap-2">
@@ -595,5 +614,124 @@ function ModalEditarSesion({ sesion, onClose }: { sesion: SesionConNombres; onCl
         </Button>
       </form>
     </Modal>
+  )
+}
+
+/** Botón para elegir un PDF del disco (sin subirlo todavía). */
+function SelectorPdf({ archivo, onChange }: { archivo: File | null; onChange: (f: File | null) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    e.target.value = ''
+    if (!file) return
+    const error = validarPdf(file)
+    if (error) return toast.error(error)
+    onChange(file)
+  }
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleChange} />
+      {archivo ? (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+          <span className="flex min-w-0 items-center gap-2 text-sm text-white">
+            <FileText className="size-4 shrink-0 text-brand-400" />
+            <span className="truncate">{archivo.name}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="rounded-full p-1.5 text-white/40 hover:bg-white/10 hover:text-danger-500"
+            aria-label="Quitar PDF"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()}>
+          <Upload className="size-4" />
+          Elegir PDF (máx. {PDF_MAX_MB} MB)
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** PDF del TP de una sesión: verlo, reemplazarlo o quitarlo. Es el mismo para todas las sesiones de ese TP. */
+function PdfDeLaClase({ claseId, pdfPath: pdfPathInicial }: { claseId: string; pdfPath: string | null }) {
+  // Estado local: el modal recibe una copia de la sesión tomada al abrirlo.
+  const [pdfPath, setPdfPath] = useState(pdfPathInicial)
+  const subir = useSubirPdfClase()
+  const quitar = useQuitarPdfClase()
+  const confirm = useConfirm()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    e.target.value = ''
+    if (!file) return
+    const error = validarPdf(file)
+    if (error) return toast.error(error)
+    subir.mutate(
+      { claseId, file, pathAnterior: pdfPath },
+      {
+        onSuccess: (nuevoPath) => {
+          setPdfPath(nuevoPath)
+          toast.success('PDF cargado')
+        },
+        onError: () => toast.error('No se pudo subir el PDF'),
+      },
+    )
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/10 p-3">
+      <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleChange} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-sm font-medium text-white/70">
+          <FileText className="size-4 text-white/40" />
+          {pdfPath ? 'PDF del TP cargado' : 'Sin PDF del TP'}
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {pdfPath && (
+            <a
+              href={urlVerPdf(pdfPath)}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-xl px-3 py-1.5 text-sm text-brand-400 hover:bg-white/5"
+            >
+              Ver
+            </a>
+          )}
+          <Button
+            type="button"
+            variant="secondary"
+            loading={subir.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            <Upload className="size-4" />
+            {pdfPath ? 'Reemplazar' : 'Subir PDF'}
+          </Button>
+          {pdfPath && (
+            <Button
+              type="button"
+              variant="ghost"
+              loading={quitar.isPending}
+              onClick={async () => {
+                if (await confirm('¿Quitar el PDF de este TP? Deja de aparecerles a los alumnos en todas las comisiones.')) {
+                  quitar.mutate(
+                    { claseId, path: pdfPath },
+                    { onSuccess: () => setPdfPath(null), onError: () => toast.error('No se pudo quitar el PDF') },
+                  )
+                }
+              }}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

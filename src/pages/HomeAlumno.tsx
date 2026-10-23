@@ -1,14 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { CalendarClock, CheckCircle2, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
+import { differenceInCalendarDays } from 'date-fns'
+import { CalendarClock, CalendarDays, CheckCircle2, Download, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { Badge } from '@/components/ui/Badge'
 import { Stat } from '@/components/ui/Stat'
 import { cn, DIAS_SEMANA, formatHora, formatPorcentaje } from '@/lib/utils'
-import { useBuscarAlumnos, useHorariosPublicos, useRegistrarAsistencia, useSesionActiva } from '@/lib/queries/alumnoPublico'
-import type { BuscarAlumnosRow, HorarioPublicoRow, RegistrarAsistenciaRow, SesionActivaRow } from '@/lib/database.types'
+import {
+  useBuscarAlumnos,
+  useHorariosPublicos,
+  useProximosParciales,
+  useRegistrarAsistencia,
+  useSesionActiva,
+} from '@/lib/queries/alumnoPublico'
+import { urlDescargaPdf } from '@/lib/queries/pdfTps'
+import type {
+  BuscarAlumnosRow,
+  HorarioPublicoRow,
+  ProximoParcialRow,
+  RegistrarAsistenciaRow,
+  SesionActivaRow,
+} from '@/lib/database.types'
 
 export function HomeAlumno() {
   const { data: sesiones, isLoading } = useSesionActiva()
@@ -28,6 +42,8 @@ export function HomeAlumno() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
+      <ProximosParciales />
+
       {isLoading ? (
         <div className="flex min-h-[40vh] items-center justify-center text-white/50">
           <Loader2 className="size-6 animate-spin" />
@@ -60,6 +76,48 @@ export function HomeAlumno() {
       )}
 
       <HorariosPublicos />
+    </div>
+  )
+}
+
+function ProximosParciales() {
+  const { data: parciales } = useProximosParciales()
+  if (!parciales || parciales.length === 0) return null
+
+  return (
+    <Card className="border-warn-500/30 bg-warn-500/[0.06]">
+      <div className="flex items-center gap-2">
+        <CalendarDays className="size-4 text-warn-500" />
+        <CardTitle className="text-base">{parciales.length === 1 ? 'Próximo examen' : 'Próximos exámenes'}</CardTitle>
+      </div>
+      <div className="mt-3 space-y-2">
+        {parciales.map((p) => (
+          <FilaProximoParcial key={p.id} parcial={p} />
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function FilaProximoParcial({ parcial }: { parcial: ProximoParcialRow }) {
+  const fecha = new Date(`${parcial.fecha}T00:00:00`)
+  const dias = differenceInCalendarDays(fecha, new Date())
+  const cuando = dias <= 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `Faltan ${dias} días`
+  const diaTexto = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' }).format(fecha)
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+      <div className="min-w-0">
+        <p className="truncate font-medium text-white">{parcial.nombre}</p>
+        <p className="text-xs text-white/50 first-letter:uppercase">
+          {diaTexto}
+          {parcial.hora ? ` · ${formatHora(parcial.hora)}` : ''}
+          {parcial.aula ? ` · Aula ${parcial.aula}` : ''}
+        </p>
+      </div>
+      <Badge tone={dias <= 1 ? 'danger' : 'warn'} className="shrink-0">
+        {cuando}
+      </Badge>
     </div>
   )
 }
@@ -137,6 +195,15 @@ function ClaseEnCurso({ sesion }: { sesion: SesionActivaRow }) {
         <p className="mt-1 text-sm text-white/50">
           Comisión {sesion.comision_nombre} · {formatHora(sesion.hora_inicio)} a {formatHora(sesion.hora_fin)}
         </p>
+        {sesion.clase_pdf_path && (
+          <a
+            href={urlDescargaPdf(sesion.clase_pdf_path, sesion.clase_nombre)}
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-brand-400/40 bg-brand-500/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500/20"
+          >
+            <Download className="size-4 text-brand-400" />
+            Descargar TP (PDF)
+          </a>
+        )}
       </Card>
 
       {sesion.codigo_activo && sesion.expira_at ? (

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../auth'
+import { subirPdfClase } from './pdfTps'
 
 export function useClases() {
   const { session } = useAuth()
@@ -31,6 +32,8 @@ export interface NuevaSesionInput {
 export interface NuevaClaseInput {
   nombre: string
   sesiones: NuevaSesionInput[]
+  /** PDF del TP (opcional). Si la clase ya tenía uno, lo reemplaza. */
+  pdf?: File | null
 }
 
 /**
@@ -44,19 +47,21 @@ export function useCrearClaseConSesiones() {
   const profesorId = session?.user.id
 
   return useMutation({
-    mutationFn: async ({ nombre, sesiones }: NuevaClaseInput) => {
+    mutationFn: async ({ nombre, sesiones, pdf }: NuevaClaseInput) => {
       const nombreTrim = nombre.trim()
 
       let claseId: string
+      let pdfAnterior: string | null = null
       const { data: existente } = await supabase
         .from('clases')
-        .select('id')
+        .select('id, pdf_path')
         .eq('profesor_id', profesorId!)
         .eq('nombre', nombreTrim)
         .maybeSingle()
 
       if (existente) {
         claseId = existente.id
+        pdfAnterior = existente.pdf_path
       } else {
         const { data: nueva, error: errClase } = await supabase
           .from('clases')
@@ -87,7 +92,18 @@ export function useCrearClaseConSesiones() {
         if (errVinculo) throw errVinculo
       }
 
-      return claseId
+      // Si falla solo el PDF, la clase ya quedó programada: no se tira error
+      // (sería engañoso) sino que se avisa para reintentarlo desde el calendario.
+      let pdfFallo = false
+      if (pdf) {
+        try {
+          await subirPdfClase(profesorId!, claseId, pdf, pdfAnterior)
+        } catch {
+          pdfFallo = true
+        }
+      }
+
+      return { claseId, pdfFallo }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clases'] })

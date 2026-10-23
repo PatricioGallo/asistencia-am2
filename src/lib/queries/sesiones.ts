@@ -5,12 +5,12 @@ import { generarCodigo } from '../utils'
 import type { Sesion } from '../database.types'
 
 export type SesionConNombres = Sesion & {
-  clases: { nombre: string } | null
+  clases: { nombre: string; pdf_path: string | null } | null
   comisiones: { id: string; nombre: string }[]
 }
 
 type SesionRow = Sesion & {
-  clases: { nombre: string } | null
+  clases: { nombre: string; pdf_path: string | null } | null
   sesion_comisiones: { comisiones: { id: string; nombre: string } | null }[]
 }
 
@@ -24,7 +24,7 @@ export function useSesionesEnRango(desde: string, hasta: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sesiones')
-        .select('*, clases(nombre), sesion_comisiones(comisiones(id, nombre))')
+        .select('*, clases(nombre, pdf_path), sesion_comisiones(comisiones(id, nombre))')
         .eq('profesor_id', profesorId!)
         .gte('fecha', desde)
         .lte('fecha', hasta)

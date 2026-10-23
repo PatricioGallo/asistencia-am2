@@ -87,3 +87,50 @@ export function useActualizarNotaAprobacion() {
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKey(profesorId) }),
   })
 }
+
+export interface ConfiguracionParciales {
+  mostrar_parciales: boolean
+  dias_aviso_parciales: number
+}
+
+function parcialesQueryKey(profesorId: string | undefined) {
+  return ['configuracion-parciales', profesorId]
+}
+
+/**
+ * Va en una consulta aparte de useConfiguracionProfesor para que, si las
+ * columnas no existen todavía en la base, falle solo lo de fechas de
+ * parciales y no el resto de la configuración.
+ */
+export function useConfiguracionParciales() {
+  const { session } = useAuth()
+  const profesorId = session?.user.id
+
+  return useQuery({
+    queryKey: parcialesQueryKey(profesorId),
+    enabled: !!profesorId,
+    queryFn: async (): Promise<ConfiguracionParciales> => {
+      const { data, error } = await supabase
+        .from('profesores')
+        .select('mostrar_parciales, dias_aviso_parciales')
+        .eq('id', profesorId!)
+        .single()
+      if (error) throw error
+      return data
+    },
+  })
+}
+
+export function useActualizarConfiguracionParciales() {
+  const { session } = useAuth()
+  const qc = useQueryClient()
+  const profesorId = session?.user.id
+
+  return useMutation({
+    mutationFn: async (cambios: Partial<ConfiguracionParciales>) => {
+      const { error } = await supabase.from('profesores').update(cambios).eq('id', profesorId!)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: parcialesQueryKey(profesorId) }),
+  })
+}

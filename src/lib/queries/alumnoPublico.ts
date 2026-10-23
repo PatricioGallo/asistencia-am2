@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
-import type { HorarioPublicoRow, MisAsistenciasRow, SesionActivaRow } from '../database.types'
+import type { HorarioPublicoRow, MisAsistenciasRow, ProximoParcialRow, SesionActivaRow } from '../database.types'
 
 const SESION_ACTIVA_KEY = ['sesion-activa']
 
@@ -41,6 +41,18 @@ export function useHorariosPublicos() {
     queryKey: ['horarios-publicos'],
     queryFn: async (): Promise<HorarioPublicoRow[]> => {
       const { data, error } = await supabase.rpc('horarios_publicos')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/** Parciales/recuperaciones dentro de la ventana de aviso configurada por el profesor. */
+export function useProximosParciales() {
+  return useQuery({
+    queryKey: ['proximos-parciales'],
+    queryFn: async (): Promise<ProximoParcialRow[]> => {
+      const { data, error } = await supabase.rpc('proximos_parciales')
       if (error) throw error
       return data ?? []
     },

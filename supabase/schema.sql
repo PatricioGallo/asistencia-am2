@@ -26,6 +26,10 @@ create table profesores (
   duracion_codigo_segundos int not null default 60 check (duracion_codigo_segundos between 10 and 600),
   porcentaje_requerido int not null default 75 check (porcentaje_requerido between 1 and 100),
   nota_aprobacion numeric(4,2) not null default 4 check (nota_aprobacion between 1 and 10),
+  -- Fechas de parciales en el home de los alumnos (ver fechas_parciales):
+  -- si se muestran y desde cuántos días antes de cada una.
+  mostrar_parciales boolean not null default false,
+  dias_aviso_parciales int not null default 7 check (dias_aviso_parciales between 0 and 365),
   created_at timestamptz not null default now()
 );
 
@@ -52,6 +56,9 @@ create table clases (
   id uuid primary key default gen_random_uuid(),
   profesor_id uuid not null references profesores (id) on delete cascade,
   nombre text not null,
+  -- PDF del TP en el bucket "tps" de Storage (ruta dentro del bucket). Los
+  -- alumnos lo pueden descargar desde el home mientras la clase está en curso.
+  pdf_path text,
   created_at timestamptz not null default now(),
   unique (profesor_id, nombre)
 );
@@ -153,6 +160,20 @@ create table notas_parciales (
   check (not (recuperatorio_2_ausente and recuperatorio_2 is not null))
 );
 
+-- Fechas de evaluaciones (parciales, recuperaciones o lo que el profesor
+-- cargue), una sola para todas las comisiones. Se les muestran a los alumnos
+-- en el home desde profesores.dias_aviso_parciales días antes hasta el mismo
+-- día, si profesores.mostrar_parciales está activo (ver proximos_parciales).
+create table fechas_parciales (
+  id uuid primary key default gen_random_uuid(),
+  profesor_id uuid not null references profesores (id) on delete cascade,
+  nombre text not null,
+  fecha date not null,
+  hora time,
+  aula text,
+  created_at timestamptz not null default now()
+);
+
 create index idx_alumnos_comision on alumnos (comision_id);
 create index idx_sesiones_fecha on sesiones (fecha);
 create index idx_sesiones_clase on sesiones (clase_id);
@@ -163,6 +184,7 @@ create index idx_codigos_sesion_expira on codigos (sesion_id, expira_at);
 create index idx_asistencias_alumno on asistencias (alumno_id);
 create index idx_asistencias_sesion on asistencias (sesion_id);
 create index idx_notas_parciales_alumno on notas_parciales (alumno_id);
+create index idx_fechas_parciales_profesor on fechas_parciales (profesor_id, fecha);
 
 -- =========================================================================
 -- Alta automática de "profesor" cuando creás el usuario en Supabase Auth
@@ -263,6 +285,7 @@ alter table clases enable row level security;
 alter table sesiones enable row level security;
 alter table sesion_comisiones enable row level security;
 alter table horarios enable row level security;
+alter table fechas_parciales enable row level security;
 alter table horario_comisiones enable row level security;
 alter table codigos enable row level security;
 alter table asistencias enable row level security;
@@ -326,6 +349,11 @@ create policy "profesor administra sus notas_parciales"
   using (profesor_id = auth.uid())
   with check (profesor_id = auth.uid());
 
+create policy "profesor administra sus fechas_parciales"
+  on fechas_parciales for all
+  using (profesor_id = auth.uid())
+  with check (profesor_id = auth.uid());
+
 -- =========================================================================
 -- Funciones públicas (RPC) para el flujo del alumno, sin login.
 -- SECURITY DEFINER: corren con permisos elevados y son las únicas puertas
@@ -338,6 +366,7 @@ create function sesion_activa()
 returns table (
   sesion_id uuid,
   clase_nombre text,
+  clase_pdf_path text,
   comision_nombre text,
   hora_inicio time,
   hora_fin time,
@@ -353,6 +382,7 @@ as $$
   select
     s.id,
     cl.nombre,
+    cl.pdf_path,
     string_agg(co.nombre, ', ' order by co.nombre),
     s.hora_inicio,
     s.hora_fin,
@@ -374,7 +404,7 @@ as $$
   join comisiones co on co.id = sc.comision_id
   where s.fecha = current_date
     and now()::time between s.hora_inicio and s.hora_fin
-  group by s.id, cl.nombre, s.hora_inicio, s.hora_fin, p.duracion_codigo_segundos
+  group by s.id, cl.nombre, cl.pdf_path, s.hora_inicio, s.hora_fin, p.duracion_codigo_segundos
   order by s.hora_inicio;
 $$;
 
@@ -412,6 +442,33 @@ as $$
 $$;
 
 grant execute on function horarios_publicos() to anon, authenticated;
+
+-- Parciales/recuperaciones que están dentro de la ventana de aviso de su
+-- profesor (desde dias_aviso_parciales días antes hasta el mismo día), de
+-- los profesores que optaron por mostrarlos (profesores.mostrar_parciales).
+create function proximos_parciales()
+returns table (
+  id uuid,
+  nombre text,
+  fecha date,
+  hora time,
+  aula text
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select f.id, f.nombre, f.fecha, f.hora, f.aula
+  from fechas_parciales f
+  join profesores p on p.id = f.profesor_id
+  where p.mostrar_parciales = true
+    and f.fecha >= current_date
+    and f.fecha <= current_date + p.dias_aviso_parciales
+  order by f.fecha, f.hora;
+$$;
+
+grant execute on function proximos_parciales() to anon, authenticated;
 
 -- Alumnos cuyo legajo empieza con lo tipeado, con sus estadísticas, scopeado
 -- al profesor dueño de la sesión activa ahora mismo (evita exponer datos
@@ -582,3 +639,24 @@ as $$
 $$;
 
 grant execute on function mis_asistencias(text) to anon, authenticated;
+
+-- =========================================================================
+-- Storage: PDFs de los TPs (clases.pdf_path). Bucket público para que los
+-- alumnos (sin login) puedan descargarlos; cada profesor solo puede subir y
+-- borrar archivos dentro de su carpeta (<profesor_id>/...).
+-- =========================================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('tps', 'tps', true, 20971520, array['application/pdf']);
+
+create policy "profesor sube PDFs de TPs a su carpeta"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'tps' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "profesor ve sus PDFs de TPs"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'tps' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "profesor borra sus PDFs de TPs"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'tps' and (storage.foldername(name))[1] = auth.uid()::text);

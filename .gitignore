@@ -30,3 +30,6 @@ dist-ssr
 
 # Planillas de notas que Pato sube temporalmente para que las cargue
 nota_parciales
+
+# Configuración personal de Claude Code
+.claude/settings.local.json
