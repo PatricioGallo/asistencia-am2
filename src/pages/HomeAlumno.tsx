@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CalendarClock, CheckCircle2, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
@@ -164,6 +164,7 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
   const [codigo, setCodigo] = useState('')
   const [resultado, setResultado] = useState<RegistrarAsistenciaRow | null>(null)
   const [expirado, setExpirado] = useState(false)
+  const codigoRef = useRef<HTMLInputElement>(null)
 
   const buscar = useBuscarAlumnos()
   const registrar = useRegistrarAsistencia()
@@ -189,6 +190,10 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
   }, [legajo])
 
   function elegirAlumno(a: BuscarAlumnosRow) {
+    // Pasar el foco al código dentro del mismo toque: así el teclado del
+    // celular no se cierra al desaparecer el input del legajo (eso hacía
+    // saltar la pantalla) y el alumno ya puede escribir el código.
+    codigoRef.current?.focus()
     setSeleccionado(a)
     setCandidatos([])
   }
@@ -240,11 +245,7 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
           <label className="mb-1.5 block text-sm font-medium text-white/70">Tu legajo</label>
 
           {seleccionado ? (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-brand-400/40 bg-brand-500/10 p-3"
-            >
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-brand-400/40 bg-brand-500/10 p-3">
               <div>
                 <p className="font-medium text-white">
                   {seleccionado.nombre} {seleccionado.apellido}
@@ -268,7 +269,7 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
                   <ChevronLeft className="size-4" />
                 </button>
               </div>
-            </motion.div>
+            </div>
           ) : (
             <>
               <div className="relative">
@@ -323,6 +324,7 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
           <div className="relative">
             <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-white/30" />
             <input
+              ref={codigoRef}
               className="input-field pl-10 text-center font-display text-lg tracking-widest uppercase"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value.toUpperCase())}
