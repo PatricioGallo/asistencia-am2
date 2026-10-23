@@ -12,7 +12,7 @@ import {
   subMonths,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, FileText, KeyRound, Pencil, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, KeyRound, Pencil, Plus, Smartphone, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -33,7 +33,7 @@ import {
   type SesionConNombres,
 } from '@/lib/queries/sesiones'
 import { useClases, useCrearClaseConSesiones, type NuevaSesionInput } from '@/lib/queries/clases'
-import { useEliminarAsistencia, usePresentesSesion } from '@/lib/queries/asistencias'
+import { useEliminarAsistencia, usePresentesSesion, type PresenteSesion } from '@/lib/queries/asistencias'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 import { PDF_MAX_MB, urlVerPdf, useQuitarPdfClase, useSubirPdfClase, validarPdf } from '@/lib/queries/pdfTps'
 
@@ -262,6 +262,7 @@ function ClasesEnCursoBanner({ onSeleccionar }: { onSeleccionar: (s: SesionConNo
                 {s.comisiones.map((c) => c.nombre).join(' + ')} · {formatHora(s.hora_inicio)} a {formatHora(s.hora_fin)}
               </p>
               <p className="mt-1 text-xs text-white/35">Tocá la tarjeta para ver presentes, editar o generar el código</p>
+              <AlertaMismoCelular sesionId={s.id} />
             </div>
             <div className="w-full sm:w-64" onClick={(e) => e.stopPropagation()}>
               <GeneradorCodigo sesionId={s.id} enHorario />
@@ -316,9 +317,17 @@ function ListaPresentes({ sesionId }: { sesionId: string }) {
   const eliminar = useEliminarAsistencia()
   const confirm = useConfirm()
 
+  const sospechosos = presentes?.filter((p) => p.mismoCelularQue.length > 0) ?? []
+
   return (
     <div>
       <p className="mb-2 text-sm font-medium text-white/70">Presentes {presentes ? `(${presentes.length})` : ''}</p>
+      {sospechosos.length > 0 && (
+        <p className="mb-2 flex items-start gap-2 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-500">
+          <Smartphone className="mt-0.5 size-3.5 shrink-0" />
+          {sospechosos.length} alumnos dieron presente desde el mismo celular que otro compañero. Están marcados en amarillo.
+        </p>
+      )}
       {isLoading ? (
         <p className="text-sm text-white/40">Cargando…</p>
       ) : !presentes || presentes.length === 0 ? (
@@ -326,9 +335,15 @@ function ListaPresentes({ sesionId }: { sesionId: string }) {
       ) : (
         <div className="max-h-56 space-y-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
           {presentes.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 hover:bg-white/5">
+            <div
+              key={p.id}
+              className={cn(
+                'flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 hover:bg-white/5',
+                p.mismoCelularQue.length > 0 && 'bg-warn-500/10',
+              )}
+            >
               <div>
-                <p className="text-sm text-white">
+                <p className={cn('text-sm', p.mismoCelularQue.length > 0 ? 'font-medium text-warn-500' : 'text-white')}>
                   {p.apellido}, {p.nombre}
                 </p>
                 <p className="text-xs text-white/40">
@@ -336,6 +351,9 @@ function ListaPresentes({ sesionId }: { sesionId: string }) {
                   {p.comision_nombre ? ` · ${p.comision_nombre}` : ''}
                   {p.metodo === 'manual' ? ' · manual' : ''}
                 </p>
+                {p.mismoCelularQue.length > 0 && (
+                  <p className="text-xs text-warn-500/80">Mismo celular que {p.mismoCelularQue.join(' y ')}</p>
+                )}
               </div>
               <button
                 onClick={async () => {
@@ -732,6 +750,57 @@ function PdfDeLaClase({ claseId, pdfPath: pdfPathInicial }: { claseId: string; p
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Pares de alumnos que dieron presente desde el mismo celular, sin repetir (A-B y B-A son el mismo). */
+function paresMismoCelular(presentes: PresenteSesion[]) {
+  const pares = new Map<string, string>()
+  for (const p of presentes) {
+    if (!p.dispositivo_id) continue
+    for (const o of presentes) {
+      if (o.dispositivo_id !== p.dispositivo_id || o.alumno_id <= p.alumno_id) continue
+      pares.set(`${p.alumno_id}:${o.alumno_id}`, `${p.apellido}, ${p.nombre} y ${o.apellido}, ${o.nombre}`)
+    }
+  }
+  return pares
+}
+
+/**
+ * Alerta en vivo en la tarjeta de clase en curso: cuando un mismo celular dio
+ * presente a dos alumnos distintos. Avisa con un toast cada par nuevo que aparece.
+ */
+function AlertaMismoCelular({ sesionId }: { sesionId: string }) {
+  const { data: presentes } = usePresentesSesion(sesionId)
+  const pares = useMemo(() => paresMismoCelular(presentes ?? []), [presentes])
+  const avisados = useRef<Set<string> | null>(null)
+
+  useEffect(() => {
+    if (!presentes) return
+    // La primera carga no avisa (son pares que ya estaban); solo los que aparecen después.
+    if (avisados.current === null) {
+      avisados.current = new Set(pares.keys())
+      return
+    }
+    for (const [clave, nombres] of pares) {
+      if (avisados.current.has(clave)) continue
+      avisados.current.add(clave)
+      toast.warning(`Mismo celular: ${nombres} dieron presente desde el mismo teléfono.`, { duration: 10000 })
+    }
+  }, [presentes, pares])
+
+  if (pares.size === 0) return null
+
+  return (
+    <div className="mt-3 space-y-1 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-500">
+      <p className="flex items-center gap-1.5 font-medium">
+        <Smartphone className="size-3.5" />
+        Presentes desde el mismo celular
+      </p>
+      {[...pares.values()].map((nombres) => (
+        <p key={nombres}>{nombres}</p>
+      ))}
     </div>
   )
 }

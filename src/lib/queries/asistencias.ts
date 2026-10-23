@@ -116,22 +116,29 @@ export interface PresenteSesion {
   apellido: string
   comision_nombre: string | null
   metodo: 'codigo' | 'manual'
+  dispositivo_id: string | null
+  /** Otros alumnos de esta sesión que dieron presente desde el mismo celular ("Apellido, Nombre"). */
+  mismoCelularQue: string[]
 }
 
-/** Alumnos presentes en una sesión puntual (pueden ser de cualquier comisión). */
+/**
+ * Alumnos presentes en una sesión puntual (pueden ser de cualquier comisión).
+ * Se refresca solo para detectar en vivo presentes cargados desde el mismo celular.
+ */
 export function usePresentesSesion(sesionId: string | null) {
   return useQuery({
     queryKey: ['presentes-sesion', sesionId],
     enabled: !!sesionId,
+    refetchInterval: 5000,
     queryFn: async (): Promise<PresenteSesion[]> => {
       const { data, error } = await supabase
         .from('asistencias')
-        .select('id, alumno_id, metodo, creado_at, alumnos(legajo, nombre, apellido, comisiones(nombre))')
+        .select('id, alumno_id, metodo, dispositivo_id, creado_at, alumnos(legajo, nombre, apellido, comisiones(nombre))')
         .eq('sesion_id', sesionId!)
         .order('creado_at')
       if (error) throw error
 
-      return (data ?? []).map((a) => {
+      const presentes = (data ?? []).map((a) => {
         const al = a.alumnos as unknown as {
           legajo: string
           nombre: string
@@ -146,8 +153,19 @@ export function usePresentesSesion(sesionId: string | null) {
           apellido: al?.apellido ?? '',
           comision_nombre: al?.comisiones?.nombre ?? null,
           metodo: a.metodo as 'codigo' | 'manual',
+          dispositivo_id: a.dispositivo_id,
+          mismoCelularQue: [] as string[],
         }
       })
+
+      for (const p of presentes) {
+        if (!p.dispositivo_id) continue
+        p.mismoCelularQue = presentes
+          .filter((o) => o.dispositivo_id === p.dispositivo_id && o.alumno_id !== p.alumno_id)
+          .map((o) => `${o.apellido}, ${o.nombre}`)
+      }
+
+      return presentes
     },
   })
 }

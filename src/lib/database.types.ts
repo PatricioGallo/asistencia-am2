@@ -89,6 +89,7 @@ export interface Asistencia {
   metodo: Metodo
   creado_at: string
   creado_por: string | null
+  dispositivo_id: string | null
 }
 
 export interface NotaParciales {
@@ -321,7 +322,7 @@ export interface Database {
         Returns: ProximoParcialRow[]
       }
       registrar_asistencia: {
-        Args: { p_legajo: string; p_codigo: string }
+        Args: { p_legajo: string; p_codigo: string; p_dispositivo?: string | null }
         Returns: RegistrarAsistenciaRow[]
       }
       mis_asistencias: {

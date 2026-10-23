@@ -125,6 +125,10 @@ create table asistencias (
   metodo text not null check (metodo in ('codigo', 'manual')),
   creado_at timestamptz not null default now(),
   creado_por uuid references profesores (id),
+  -- Identificador al azar que el navegador del alumno genera y guarda (ver
+  -- src/lib/dispositivo.ts). Si en una misma sesión hay presentes de alumnos
+  -- distintos con el mismo valor, probablemente uno cargó el del otro.
+  dispositivo_id text,
   unique (alumno_id, clase_id)
 );
 
@@ -516,7 +520,7 @@ grant execute on function buscar_alumnos(text) to anon, authenticated;
 
 -- Registra la asistencia validando el código de 60s. Es la única forma en
 -- que el rol anónimo puede escribir en "asistencias".
-create function registrar_asistencia(p_legajo text, p_codigo text)
+create function registrar_asistencia(p_legajo text, p_codigo text, p_dispositivo text default null)
 returns table (
   ok boolean,
   mensaje text,
@@ -567,8 +571,9 @@ begin
     return;
   end if;
 
-  insert into asistencias (profesor_id, alumno_id, sesion_id, clase_id, metodo)
-  values (v_codigo.profesor_id, v_alumno.id, v_codigo.sesion_id, v_codigo.clase_id, 'codigo');
+  insert into asistencias (profesor_id, alumno_id, sesion_id, clase_id, metodo, dispositivo_id)
+  values (v_codigo.profesor_id, v_alumno.id, v_codigo.sesion_id, v_codigo.clase_id, 'codigo',
+          left(nullif(trim(p_dispositivo), ''), 100));
 
   select va.presentes::int, va.total_clases::int, va.porcentaje into v_stats
   from vista_asistencia_alumno va
@@ -580,7 +585,7 @@ begin
 end;
 $$;
 
-grant execute on function registrar_asistencia(text, text) to anon, authenticated;
+grant execute on function registrar_asistencia(text, text, text) to anon, authenticated;
 
 -- Historial de asistencia de un alumno por legajo exacto (no autocompleta ni
 -- lista por prefijo como buscar_alumnos: solo devuelve datos a quien ya

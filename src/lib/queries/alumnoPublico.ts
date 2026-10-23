@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../supabaseClient'
+import { obtenerDispositivoId } from '../dispositivo'
 import type { HorarioPublicoRow, MisAsistenciasRow, ProximoParcialRow, SesionActivaRow } from '../database.types'
 
 const SESION_ACTIVA_KEY = ['sesion-activa']
@@ -88,6 +89,7 @@ export function useRegistrarAsistencia() {
       const { data, error } = await supabase.rpc('registrar_asistencia', {
         p_legajo: input.legajo,
         p_codigo: input.codigo,
+        p_dispositivo: obtenerDispositivoId(),
       })
       if (error) throw error
       return data?.[0] ?? null
