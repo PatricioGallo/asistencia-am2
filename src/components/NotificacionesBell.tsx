@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatDistanceToNowStrict } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Bell, BellRing, CheckCheck, Flag, Play, Smartphone, Timer, TimerOff, Trash2 } from 'lucide-react'
+import { Bell, BellRing, Flag, Play, Smartphone, Timer, TimerOff, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -32,8 +32,24 @@ export function NotificacionesBell() {
   const [abierto, setAbierto] = useState(false)
   const contenedorRef = useRef<HTMLDivElement>(null)
   const vistas = useRef<Set<string> | null>(null)
+  // Las que estaban sin leer al abrir: se siguen resaltando mientras el panel
+  // está abierto, aunque ya se hayan marcado como leídas.
+  const [resaltadas, setResaltadas] = useState<Set<string>>(new Set())
 
   const noLeidas = notificaciones?.filter((n) => !n.leida).length ?? 0
+
+  // Al abrir el panel (o si llega una nueva con el panel abierto) se marcan como
+  // leídas. Una sola vez por cada notificación: si falla no se reintenta en bucle.
+  const marcarLeidasMutate = marcarLeidas.mutate
+  const yaMarcadas = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!abierto || !notificaciones) return
+    const ids = notificaciones.filter((n) => !n.leida && !yaMarcadas.current.has(n.id)).map((n) => n.id)
+    if (ids.length === 0) return
+    for (const id of ids) yaMarcadas.current.add(id)
+    setResaltadas((prev) => new Set([...prev, ...ids]))
+    marcarLeidasMutate()
+  }, [abierto, notificaciones, marcarLeidasMutate])
 
   // Aviso flotante por cada notificación nueva (no por las que ya estaban al entrar).
   useEffect(() => {
@@ -55,10 +71,14 @@ export function NotificacionesBell() {
   useEffect(() => {
     if (!abierto) return
     function alTocar(e: PointerEvent) {
-      if (!contenedorRef.current?.contains(e.target as Node)) setAbierto(false)
+      if (!contenedorRef.current?.contains(e.target as Node)) cerrar()
     }
     function alTeclear(e: KeyboardEvent) {
-      if (e.key === 'Escape') setAbierto(false)
+      if (e.key === 'Escape') cerrar()
+    }
+    function cerrar() {
+      setAbierto(false)
+      setResaltadas(new Set())
     }
     document.addEventListener('pointerdown', alTocar)
     document.addEventListener('keydown', alTeclear)
@@ -74,7 +94,10 @@ export function NotificacionesBell() {
   return (
     <div ref={contenedorRef} className="relative shrink-0">
       <button
-        onClick={() => setAbierto((a) => !a)}
+        onClick={() => {
+          if (abierto) setResaltadas(new Set())
+          setAbierto((a) => !a)
+        }}
         className={cn(
           'relative flex items-center rounded-xl p-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white',
           abierto && 'bg-white/10 text-white',
@@ -94,15 +117,6 @@ export function NotificacionesBell() {
           <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <p className="font-display text-sm font-semibold text-white">Notificaciones</p>
             <div className="flex items-center gap-1">
-              {noLeidas > 0 && (
-                <button
-                  onClick={() => marcarLeidas.mutate()}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-brand-400 hover:bg-white/5"
-                >
-                  <CheckCheck className="size-3.5" />
-                  Marcar leídas
-                </button>
-              )}
               {notificaciones && notificaciones.length > 0 && (
                 <button
                   onClick={async () => {
@@ -121,7 +135,9 @@ export function NotificacionesBell() {
             {!notificaciones || notificaciones.length === 0 ? (
               <p className="p-8 text-center text-sm text-white/40">No hay notificaciones.</p>
             ) : (
-              notificaciones.map((n) => <FilaNotificacion key={n.id} notificacion={n} />)
+              notificaciones.map((n) => (
+                <FilaNotificacion key={n.id} notificacion={n} nueva={!n.leida || resaltadas.has(n.id)} />
+              ))
             )}
           </div>
         </div>
@@ -130,7 +146,7 @@ export function NotificacionesBell() {
   )
 }
 
-function FilaNotificacion({ notificacion: n }: { notificacion: Notificacion }) {
+function FilaNotificacion({ notificacion: n, nueva }: { notificacion: Notificacion; nueva: boolean }) {
   const Icono = ICONO[n.tipo] ?? Bell
   const alerta = n.tipo === 'mismo_celular'
 
@@ -138,7 +154,7 @@ function FilaNotificacion({ notificacion: n }: { notificacion: Notificacion }) {
     <div
       className={cn(
         'flex gap-3 border-b border-white/5 px-4 py-3 last:border-0',
-        !n.leida && 'bg-white/[0.04]',
+        nueva && 'bg-white/[0.04]',
         alerta && 'bg-warn-500/10',
       )}
     >
@@ -153,7 +169,7 @@ function FilaNotificacion({ notificacion: n }: { notificacion: Notificacion }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className={cn('text-sm font-medium', alerta ? 'text-warn-500' : 'text-white')}>{n.titulo}</p>
-          {!n.leida && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-400" aria-label="Sin leer" />}
+          {nueva && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-400" aria-label="Nueva" />}
         </div>
         <p className="mt-0.5 text-xs text-white/60">{n.mensaje}</p>
         <p className="mt-1 text-[11px] text-white/35">
