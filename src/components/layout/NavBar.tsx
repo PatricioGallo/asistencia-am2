@@ -1,5 +1,17 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { CalendarDays, ClipboardList, GraduationCap, KeyRound, LogOut, Settings, ShieldCheck, Users } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  CalendarDays,
+  ChevronDown,
+  ClipboardList,
+  GraduationCap,
+  KeyRound,
+  LogOut,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { LogoMark } from '@/components/LogoMark'
@@ -37,7 +49,8 @@ export function NavBar() {
 
         {session ? (
           <div className="flex min-w-0 items-center gap-1">
-            <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
+            {/* Computadora: pestañas a la vista. Celular y app instalada: menú desplegable (MenuDocente). */}
+            <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto md:flex standalone:hidden">
               {adminTabs.map((tab) => (
                 <NavLink
                   key={tab.to}
@@ -50,7 +63,7 @@ export function NavBar() {
                   }
                 >
                   <tab.icon className="size-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.label}
                 </NavLink>
               ))}
               <button
@@ -58,11 +71,14 @@ export function NavBar() {
                 className="ml-1 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
               >
                 <LogOut className="size-4" />
-                <span className="hidden sm:inline">Salir</span>
+                Salir
               </button>
             </nav>
             {/* Fuera del <nav> con overflow para que el desplegable no quede recortado. */}
             <NotificacionesBell />
+            <div className="md:hidden standalone:block">
+              <MenuDocente />
+            </div>
           </div>
         ) : (
           <nav className="flex items-center gap-1 overflow-x-auto">
@@ -90,5 +106,96 @@ export function NavBar() {
         )}
       </div>
     </header>
+  )
+}
+
+/** Secciones del docente agrupadas en un menú desplegable. */
+function MenuDocente() {
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [abierto, setAbierto] = useState(false)
+  const contenedorRef = useRef<HTMLDivElement>(null)
+
+  const actual = adminTabs.find((t) => pathname.startsWith(t.to))
+  const IconoActual = actual?.icon ?? Menu
+
+  // Cerrar al navegar, al tocar afuera o con Escape.
+  useEffect(() => {
+    setAbierto(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!abierto) return
+    function alTocar(e: PointerEvent) {
+      if (!contenedorRef.current?.contains(e.target as Node)) setAbierto(false)
+    }
+    function alTeclear(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAbierto(false)
+    }
+    document.addEventListener('pointerdown', alTocar)
+    document.addEventListener('keydown', alTeclear)
+    return () => {
+      document.removeEventListener('pointerdown', alTocar)
+      document.removeEventListener('keydown', alTeclear)
+    }
+  }, [abierto])
+
+  async function handleSignOut() {
+    setAbierto(false)
+    await signOut()
+    navigate('/')
+  }
+
+  return (
+    <div ref={contenedorRef} className="relative shrink-0">
+      <button
+        onClick={() => setAbierto((a) => !a)}
+        aria-expanded={abierto}
+        aria-haspopup="menu"
+        className={cn(
+          'flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/5 hover:text-white',
+          abierto && 'bg-white/10 text-white',
+        )}
+      >
+        <Menu className="size-4 sm:hidden" />
+        <IconoActual className="hidden size-4 sm:block" />
+        <span className="hidden sm:inline">{actual?.label ?? 'Menú'}</span>
+        <ChevronDown className={cn('hidden size-3.5 text-white/40 transition-transform sm:block', abierto && 'rotate-180')} />
+      </button>
+
+      {abierto && (
+        <div
+          role="menu"
+          className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-bg-950/95 p-1.5 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-56"
+        >
+          {adminTabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              role="menuitem"
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white',
+                  isActive && 'bg-white/10 text-white',
+                )
+              }
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </NavLink>
+          ))}
+          <div className="my-1.5 border-t border-white/10" />
+          <button
+            role="menuitem"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-danger-500"
+          >
+            <LogOut className="size-4" />
+            Salir
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
