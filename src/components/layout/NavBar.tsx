@@ -3,6 +3,7 @@ import { CalendarDays, ClipboardList, GraduationCap, KeyRound, LogOut, Settings,
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import { LogoMark } from '@/components/LogoMark'
+import { NotificacionesBell } from '@/components/NotificacionesBell'
 
 const adminTabs = [
   { to: '/admin/calendario', label: 'Calendario', icon: CalendarDays },
@@ -35,30 +36,34 @@ export function NavBar() {
         </NavLink>
 
         {session ? (
-          <nav className="flex items-center gap-1 overflow-x-auto">
-            {adminTabs.map((tab) => (
-              <NavLink
-                key={tab.to}
-                to={tab.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:text-white',
-                    isActive && 'bg-white/10 text-white',
-                  )
-                }
+          <div className="flex min-w-0 items-center gap-1">
+            <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
+              {adminTabs.map((tab) => (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:text-white',
+                      isActive && 'bg-white/10 text-white',
+                    )
+                  }
+                >
+                  <tab.icon className="size-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </NavLink>
+              ))}
+              <button
+                onClick={handleSignOut}
+                className="ml-1 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
               >
-                <tab.icon className="size-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </NavLink>
-            ))}
-            <button
-              onClick={handleSignOut}
-              className="ml-1 flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </button>
-          </nav>
+                <LogOut className="size-4" />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
+            </nav>
+            {/* Fuera del <nav> con overflow para que el desplegable no quede recortado. */}
+            <NotificacionesBell />
+          </div>
         ) : (
           <nav className="flex items-center gap-1 overflow-x-auto">
             {alumnoTabs.map((tab) => (

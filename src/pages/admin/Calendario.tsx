@@ -769,26 +769,12 @@ function paresMismoCelular(presentes: PresenteSesion[]) {
 
 /**
  * Alerta en vivo en la tarjeta de clase en curso: cuando un mismo celular dio
- * presente a dos alumnos distintos. Avisa con un toast cada par nuevo que aparece.
+ * presente a dos alumnos distintos. El aviso flotante lo da la campanita de
+ * notificaciones (NotificacionesBell), para no duplicarlo.
  */
 function AlertaMismoCelular({ sesionId }: { sesionId: string }) {
   const { data: presentes } = usePresentesSesion(sesionId)
   const pares = useMemo(() => paresMismoCelular(presentes ?? []), [presentes])
-  const avisados = useRef<Set<string> | null>(null)
-
-  useEffect(() => {
-    if (!presentes) return
-    // La primera carga no avisa (son pares que ya estaban); solo los que aparecen después.
-    if (avisados.current === null) {
-      avisados.current = new Set(pares.keys())
-      return
-    }
-    for (const [clave, nombres] of pares) {
-      if (avisados.current.has(clave)) continue
-      avisados.current.add(clave)
-      toast.warning(`Mismo celular: ${nombres} dieron presente desde el mismo teléfono.`, { duration: 10000 })
-    }
-  }, [presentes, pares])
 
   if (pares.size === 0) return null
 

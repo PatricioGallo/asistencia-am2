@@ -125,6 +125,30 @@ export interface ProximoParcialRow {
   aula: string | null
 }
 
+export type TipoNotificacion = 'clase_inicio' | 'clase_fin' | 'codigo_inicio' | 'codigo_fin' | 'mismo_celular' | 'prueba'
+
+export interface Notificacion {
+  id: string
+  profesor_id: string
+  tipo: TipoNotificacion
+  titulo: string
+  mensaje: string
+  sesion_id: string | null
+  clave: string
+  leida: boolean
+  created_at: string
+}
+
+export interface PushSuscripcion {
+  id: string
+  profesor_id: string
+  endpoint: string
+  p256dh: string
+  auth: string
+  user_agent: string | null
+  created_at: string
+}
+
 export interface VistaAsistenciaAlumno {
   alumno_id: string
   profesor_id: string
@@ -291,6 +315,18 @@ export interface Database {
         Update: Partial<NotaParciales>
         Relationships: []
       }
+      notificaciones: {
+        Row: Notificacion
+        Insert: never
+        Update: Pick<Notificacion, 'leida'>
+        Relationships: []
+      }
+      push_suscripciones: {
+        Row: PushSuscripcion
+        Insert: Partial<PushSuscripcion> & { profesor_id: string; endpoint: string; p256dh: string; auth: string }
+        Update: Partial<PushSuscripcion>
+        Relationships: []
+      }
       fechas_parciales: {
         Row: FechaParcial
         Insert: Partial<FechaParcial> & { profesor_id: string; nombre: string; fecha: string }
@@ -316,6 +352,10 @@ export interface Database {
       horarios_publicos: {
         Args: Record<PropertyKey, never>
         Returns: HorarioPublicoRow[]
+      }
+      notificacion_de_prueba: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       proximos_parciales: {
         Args: Record<PropertyKey, never>

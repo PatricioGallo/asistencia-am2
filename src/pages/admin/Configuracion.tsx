@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { BellRing, Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -25,6 +25,9 @@ import {
   useEliminarFechaParcial,
   useFechasParciales,
 } from '@/lib/queries/fechasParciales'
+import { useNotificacionDePrueba } from '@/lib/queries/notificaciones'
+import { useAuth } from '@/lib/auth'
+import { activarPush, desactivarPush, estadoPush, type EstadoPush } from '@/lib/push'
 
 const DURACION_MIN = 10
 const DURACION_MAX = 600
@@ -44,6 +47,7 @@ const AVISO_OPCIONES = [
 export function Configuracion() {
   return (
     <div className="space-y-6">
+      <NotificacionesPushPanel />
       <ComisionesPanel />
       <DuracionCodigoPanel />
       <PorcentajeRequeridoPanel />
@@ -609,5 +613,98 @@ function ListaFechasParciales() {
         </div>
       ))}
     </div>
+  )
+}
+
+const TEXTO_ESTADO_PUSH: Record<EstadoPush, string> = {
+  'no-soportado': 'Este navegador no permite notificaciones push.',
+  'ios-sin-instalar':
+    'En iPhone las notificaciones solo funcionan con la app instalada: en Safari tocá Compartir → "Agregar a inicio", abrí la app desde ese ícono y volvé a esta pantalla.',
+  'sin-service-worker':
+    'Las notificaciones push solo funcionan en la versión publicada de la página, no en localhost.',
+  bloqueado:
+    'Las notificaciones están bloqueadas para esta página. Habilitalas desde los ajustes del navegador (o del celular) y volvé a intentar.',
+  activo: 'Activadas en este dispositivo.',
+  inactivo: 'Desactivadas en este dispositivo.',
+}
+
+function NotificacionesPushPanel() {
+  const { session } = useAuth()
+  const prueba = useNotificacionDePrueba()
+  const [estado, setEstado] = useState<EstadoPush | null>(null)
+  const [cambiando, setCambiando] = useState(false)
+
+  useEffect(() => {
+    let vigente = true
+    estadoPush()
+      .then((e) => vigente && setEstado(e))
+      .catch(() => vigente && setEstado('no-soportado'))
+    return () => {
+      vigente = false
+    }
+  }, [])
+
+  const activo = estado === 'activo'
+  const sePuedeCambiar = estado === 'activo' || estado === 'inactivo'
+
+  async function alternar() {
+    if (!session) return
+    setCambiando(true)
+    try {
+      const nuevo = activo ? await desactivarPush() : await activarPush(session.user.id)
+      setEstado(nuevo)
+      if (nuevo === 'activo') toast.success('Notificaciones activadas en este dispositivo')
+      if (nuevo === 'bloqueado') toast.error('Rechazaste el permiso de notificaciones')
+    } catch {
+      toast.error('No se pudieron cambiar las notificaciones. ¿Corriste el SQL de notificaciones en Supabase?')
+    } finally {
+      setCambiando(false)
+    }
+  }
+
+  return (
+    <Card>
+      <label className={cn('flex items-center justify-between gap-4', sePuedeCambiar && 'cursor-pointer')}>
+        <div>
+          <CardTitle>Notificaciones en este celular</CardTitle>
+          <CardSubtitle>
+            Avisos cuando empieza y termina una clase, cuando arranca y termina el código (con los presentes) y cuando
+            un mismo celular da presente a dos alumnos. Se activan por dispositivo: hacelo en cada celular o
+            computadora donde los quieras recibir.
+          </CardSubtitle>
+        </div>
+        <span className="relative inline-flex h-7 w-12 shrink-0 items-center">
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            checked={activo}
+            disabled={!sePuedeCambiar || cambiando}
+            onChange={alternar}
+          />
+          <span className="absolute inset-0 rounded-full bg-white/15 transition-colors peer-checked:bg-brand-500 peer-disabled:opacity-50" />
+          <span className="absolute left-1 size-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
+        </span>
+      </label>
+
+      {estado && (
+        <p className={cn('mt-3 text-xs', sePuedeCambiar ? 'text-white/45' : 'text-warn-500')}>{TEXTO_ESTADO_PUSH[estado]}</p>
+      )}
+
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-4"
+        loading={prueba.isPending}
+        onClick={() =>
+          prueba.mutate(undefined, {
+            onSuccess: () => toast.success('Notificación de prueba enviada'),
+            onError: () => toast.error('No se pudo enviar. ¿Corriste el SQL de notificaciones en Supabase?'),
+          })
+        }
+      >
+        <BellRing className="size-4" />
+        Enviar notificación de prueba
+      </Button>
+    </Card>
   )
 }
