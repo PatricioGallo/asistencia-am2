@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js'
 import { Navigate, useLocation } from 'react-router-dom'
 import { supabase } from './supabaseClient'
+import { pausarPush, reanudarPush } from './push'
 
 interface AuthContextValue {
   session: Session | null
@@ -29,12 +30,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.subscription.unsubscribe()
   }, [])
 
+  // Si el docente tenía las notificaciones activas en este dispositivo antes de
+  // cerrar sesión, se reactivan solas al volver a entrar.
+  const userId = session?.user.id
+  useEffect(() => {
+    if (userId) reanudarPush(userId).catch(() => {})
+  }, [userId])
+
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return { error: error?.message ?? null }
   }
 
   async function signOut() {
+    // Las notificaciones push son del docente logueado: al salir se pausan en este
+    // dispositivo y se reactivan al volver a entrar (ver pausarPush). Va antes del
+    // signOut porque sin sesión no se puede borrar la suscripción. Nunca debe
+    // trabar el cierre de sesión: máximo 3 segundos.
+    if (session) {
+      await Promise.race([pausarPush(session.user.id).catch(() => {}), new Promise((r) => setTimeout(r, 3000))])
+    }
     await supabase.auth.signOut()
   }
 

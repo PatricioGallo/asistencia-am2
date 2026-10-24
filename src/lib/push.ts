@@ -14,6 +14,45 @@ export type EstadoPush =
   | 'activo'
   | 'inactivo'
 
+/**
+ * Al cerrar sesión las notificaciones se pausan en el dispositivo (no le llegan
+ * a nadie) y se anota para qué docente estaban activas; al volver a entrar con
+ * esa misma cuenta se reactivan solas.
+ */
+const CLAVE_PAUSADO = 'am2-push-pausado'
+
+function leerPausado(): string | null {
+  try {
+    return localStorage.getItem(CLAVE_PAUSADO)
+  } catch {
+    return null
+  }
+}
+
+function guardarPausado(profesorId: string | null) {
+  try {
+    if (profesorId) localStorage.setItem(CLAVE_PAUSADO, profesorId)
+    else localStorage.removeItem(CLAVE_PAUSADO)
+  } catch {
+    // Sin localStorage: no se recuerda, habrá que reactivarlas a mano.
+  }
+}
+
+async function guardarSuscripcion(profesorId: string, suscripcion: PushSubscription) {
+  const json = suscripcion.toJSON()
+  const { error } = await supabase.from('push_suscripciones').upsert(
+    {
+      profesor_id: profesorId,
+      endpoint: suscripcion.endpoint,
+      p256dh: json.keys?.p256dh ?? '',
+      auth: json.keys?.auth ?? '',
+      user_agent: navigator.userAgent.slice(0, 300),
+    },
+    { onConflict: 'endpoint' },
+  )
+  if (error) throw error
+}
+
 function esIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
 }
@@ -45,6 +84,8 @@ export async function estadoPush(): Promise<EstadoPush> {
   if (!registro) return 'sin-service-worker'
   if (Notification.permission === 'denied') return 'bloqueado'
   const suscripcion = await registro.pushManager.getSubscription()
+  // Pausadas (alguien cerró sesión y todavía no volvió a entrar con esa cuenta): no le llegan a nadie.
+  if (leerPausado()) return 'inactivo'
   return suscripcion && Notification.permission === 'granted' ? 'activo' : 'inactivo'
 }
 
@@ -63,25 +104,19 @@ export async function activarPush(profesorId: string): Promise<EstadoPush> {
       applicationServerKey: base64UrlABytes(VAPID_PUBLIC_KEY),
     }))
 
-  const json = suscripcion.toJSON()
-  const { error } = await supabase.from('push_suscripciones').upsert(
-    {
-      profesor_id: profesorId,
-      endpoint: suscripcion.endpoint,
-      p256dh: json.keys?.p256dh ?? '',
-      auth: json.keys?.auth ?? '',
-      user_agent: navigator.userAgent.slice(0, 300),
-    },
-    { onConflict: 'endpoint' },
-  )
-  if (error) {
+  try {
+    await guardarSuscripcion(profesorId, suscripcion)
+  } catch (error) {
     await suscripcion.unsubscribe()
     throw error
   }
+  guardarPausado(null)
   return 'activo'
 }
 
+/** Apagado a propósito desde Configuración: no se reactiva al volver a entrar. */
 export async function desactivarPush(): Promise<EstadoPush> {
+  guardarPausado(null)
   const registro = await registroServiceWorker()
   const suscripcion = await registro?.pushManager.getSubscription()
   if (suscripcion) {
@@ -89,4 +124,28 @@ export async function desactivarPush(): Promise<EstadoPush> {
     await suscripcion.unsubscribe()
   }
   return 'inactivo'
+}
+
+/**
+ * Al cerrar sesión: este dispositivo deja de recibir avisos (se borra la
+ * suscripción de la base) pero se recuerda que estaban activas. La suscripción
+ * del navegador y el permiso quedan, así se pueden reactivar sin volver a preguntar.
+ */
+export async function pausarPush(profesorId: string) {
+  const registro = await registroServiceWorker()
+  const suscripcion = await registro?.pushManager.getSubscription()
+  if (!suscripcion) return
+  guardarPausado(profesorId)
+  await supabase.from('push_suscripciones').delete().eq('endpoint', suscripcion.endpoint)
+}
+
+/** Al iniciar sesión: si estaban activas para este mismo docente antes de salir, se reactivan. */
+export async function reanudarPush(profesorId: string) {
+  if (leerPausado() !== profesorId) return
+  if (!('Notification' in window) || Notification.permission !== 'granted') return
+  const registro = await registroServiceWorker()
+  const suscripcion = await registro?.pushManager.getSubscription()
+  if (!suscripcion) return
+  await guardarSuscripcion(profesorId, suscripcion)
+  guardarPausado(null)
 }
