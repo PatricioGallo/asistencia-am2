@@ -63,7 +63,7 @@ export function NotificacionesBell() {
       vistas.current.add(n.id)
       if (!CON_TOAST.includes(n.tipo)) continue
       const mostrar = n.tipo === 'mismo_celular' ? toast.warning : toast.info
-      mostrar(n.titulo, { description: n.mensaje, duration: n.tipo === 'mismo_celular' ? 15000 : 6000 })
+      mostrar(n.titulo, { description: n.mensaje, duration: 5000 })
     }
   }, [notificaciones])
 

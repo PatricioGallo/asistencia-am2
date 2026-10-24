@@ -237,6 +237,11 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
   const [resultado, setResultado] = useState<RegistrarAsistenciaRow | null>(null)
   const [expirado, setExpirado] = useState(false)
   const codigoRef = useRef<HTMLInputElement>(null)
+  // Al confirmar, la tarjeta de "¡Listo!" ocupa el mismo alto que tenía el
+  // formulario: si la página se achica de golpe mientras se cierra el teclado,
+  // el celular la deja desplazada y la pantalla "salta".
+  const tarjetaRef = useRef<HTMLDivElement>(null)
+  const [altoFormulario, setAltoFormulario] = useState<number | null>(null)
 
   const buscar = useBuscarAlumnos()
   const registrar = useRegistrarAsistencia()
@@ -280,15 +285,34 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!seleccionado || !codigo.trim() || expirado) return
+    // Cerrar el teclado ya, antes de que cambie la pantalla, para que el celular
+    // no reacomode la vista después de mostrar el resultado.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     registrar.mutate(
       { legajo: seleccionado.legajo, codigo: codigo.trim() },
-      { onSuccess: setResultado },
+      {
+        onSuccess: (r) => {
+          if (r?.ok && tarjetaRef.current) setAltoFormulario(tarjetaRef.current.offsetHeight)
+          setResultado(r)
+        },
+      },
     )
   }
 
+  // Si igual la tarjeta de "¡Listo!" quedó fuera de la pantalla, desplazar lo mínimo para mostrarla.
+  useEffect(() => {
+    if (!resultado?.ok || !tarjetaRef.current) return
+    const { top, bottom } = tarjetaRef.current.getBoundingClientRect()
+    if (top < 0 || bottom > window.innerHeight) tarjetaRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [resultado])
+
   if (resultado?.ok) {
     return (
-      <Card className="flex flex-col items-center gap-3 text-center">
+      <Card
+        ref={tarjetaRef}
+        className="flex flex-col items-center justify-center gap-3 text-center"
+        style={altoFormulario ? { minHeight: altoFormulario } : undefined}
+      >
         <CheckCircle2 className="size-12 text-ok-500" />
         <div>
           <p className="font-display text-lg font-semibold text-white">
@@ -307,7 +331,7 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
   }
 
   return (
-    <Card>
+    <Card ref={tarjetaRef}>
       <div className="mb-4 flex items-center justify-center">
         <CountdownRing expiraAt={expiraAt} totalSeconds={duracionSegundos} onExpire={() => setExpirado(true)} />
       </div>

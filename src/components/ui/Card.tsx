@@ -1,7 +1,7 @@
-import type { HTMLAttributes } from 'react'
+import type { ComponentProps, HTMLAttributes } from 'react'
 import { cn } from '@/lib/utils'
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+export function Card({ className, ...props }: ComponentProps<'div'>) {
   return <div className={cn('glass-panel p-6', className)} {...props} />
 }
 

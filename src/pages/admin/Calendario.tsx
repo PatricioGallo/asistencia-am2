@@ -333,7 +333,7 @@ function ListaPresentes({ sesionId }: { sesionId: string }) {
       ) : !presentes || presentes.length === 0 ? (
         <p className="rounded-2xl bg-white/5 p-4 text-center text-sm text-white/40">Todavía no hay nadie presente.</p>
       ) : (
-        <div className="max-h-56 space-y-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+        <div className="max-h-56 space-y-1 overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
           {presentes.map((p) => (
             <div
               key={p.id}

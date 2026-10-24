@@ -31,7 +31,15 @@ if (!hasSupabaseConfig) {
             <AuthProvider>
               <ConfirmProvider>
                 <App />
-                <Toaster theme="dark" position="top-center" richColors closeButton />
+                {/* Los avisos arrancan debajo del notch (safe area), no detrás. */}
+                <Toaster
+                  theme="dark"
+                  position="top-center"
+                  richColors
+                  closeButton
+                  offset={{ top: 'calc(var(--header-pt) + 16px)' }}
+                  mobileOffset={{ top: 'calc(var(--header-pt) + 12px)', left: 12, right: 12 }}
+                />
               </ConfirmProvider>
             </AuthProvider>
           </BrowserRouter>
