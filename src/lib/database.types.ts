@@ -192,6 +192,8 @@ export interface HorarioPublicoRow {
   hora_inicio: string
   hora_fin: string
   aula: string | null
+  /** 1 a 5 según el promedio de presentes de las últimas clases; null si todavía no hay datos. */
+  concurrencia?: number | null
 }
 
 export interface ClaseAsistidaJson {

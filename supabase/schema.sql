@@ -423,7 +423,8 @@ returns table (
   dia_semana int,
   hora_inicio time,
   hora_fin time,
-  aula text
+  aula text,
+  concurrencia int
 )
 language sql
 security definer
@@ -435,11 +436,47 @@ as $$
     h.dia_semana,
     h.hora_inicio,
     h.hora_fin,
-    h.aula
+    h.aula,
+    max(conc.nivel)
   from horarios h
   join profesores p on p.id = h.profesor_id
   join horario_comisiones hc on hc.horario_id = h.id
   join comisiones co on co.id = hc.comision_id
+  left join lateral (
+    -- Qué tan llena suele estar la clase (1 a 5 personitas): promedio de
+    -- presentes de las últimas 3 clases dadas en ese horario (mismo día de la
+    -- semana, misma hora y alguna comisión en común). No cuenta paros/feriados
+    -- (sesiones sin código ni asistencias) ni la clase de hoy si no terminó.
+    -- Solo se expone el nivel, no la cantidad exacta.
+    select
+      case
+        when avg(u.presentes) is null then null
+        when avg(u.presentes) < 15 then 1
+        when avg(u.presentes) < 30 then 2
+        when avg(u.presentes) < 45 then 3
+        when avg(u.presentes) < 60 then 4
+        else 5
+      end as nivel
+    from (
+      select (select count(*) from asistencias a where a.sesion_id = s.id) as presentes
+      from sesiones s
+      where s.profesor_id = h.profesor_id
+        and extract(isodow from s.fecha) = h.dia_semana
+        and s.hora_inicio = h.hora_inicio
+        and (s.fecha < current_date or (s.fecha = current_date and s.hora_fin < localtime))
+        and exists (
+          select 1 from sesion_comisiones sc
+          join horario_comisiones hc2 on hc2.comision_id = sc.comision_id
+          where sc.sesion_id = s.id and hc2.horario_id = h.id
+        )
+        and (
+          exists (select 1 from codigos c where c.sesion_id = s.id)
+          or exists (select 1 from asistencias a2 where a2.sesion_id = s.id)
+        )
+      order by s.fecha desc
+      limit 3
+    ) u
+  ) conc on true
   where p.mostrar_horarios = true
   group by h.id, h.dia_semana, h.hora_inicio, h.hora_fin, h.aula
   order by h.dia_semana, h.hora_inicio;

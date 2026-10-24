@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { differenceInCalendarDays } from 'date-fns'
-import { CalendarClock, CalendarDays, CheckCircle2, Download, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles } from 'lucide-react'
+import { CalendarClock, CalendarDays, CheckCircle2, Download, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles, User } from 'lucide-react'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
@@ -140,6 +140,7 @@ function HorariosPublicos() {
   const { data: horarios } = useHorariosPublicos()
   if (!horarios || horarios.length === 0) return null
 
+  const hayConcurrencia = horarios.some((h) => h.concurrencia != null)
   const porDia = new Map<number, HorarioPublicoRow[]>()
   for (const h of horarios) {
     const arr = porDia.get(h.dia_semana) ?? []
@@ -153,7 +154,10 @@ function HorariosPublicos() {
         <CalendarClock className="size-4 text-white/40" />
         <CardTitle className="text-base">Horarios de cursada</CardTitle>
       </div>
-      <CardSubtitle>Día, horario y aula de cada comisión.</CardSubtitle>
+      <CardSubtitle>
+        Día, horario y aula de cada comisión.
+        {hayConcurrencia && ' Las personitas muestran qué tan llena suele estar cada clase: podés ir a otra comisión si te queda mejor.'}
+      </CardSubtitle>
 
       <div className="mt-4 space-y-4">
         {[...porDia.entries()].map(([dia, items]) => (
@@ -167,6 +171,7 @@ function HorariosPublicos() {
                     <p className="text-xs text-white/45">
                       {formatHora(h.hora_inicio)} a {formatHora(h.hora_fin)}
                     </p>
+                    {h.concurrencia != null && <Concurrencia nivel={h.concurrencia} />}
                   </div>
                   {h.aula && (
                     <Badge tone="brand" className="shrink-0">
@@ -415,5 +420,30 @@ function FormularioAsistencia({ expiraAt, duracionSegundos }: { expiraAt: string
         </Button>
       </form>
     </Card>
+  )
+}
+
+const CONCURRENCIA_TEXTO = ['Muy tranquila', 'Tranquila', 'Moderada', 'Concurrida', 'Muy concurrida']
+const CONCURRENCIA_COLOR = ['text-ok-500', 'text-ok-500', 'text-warn-500', 'text-danger-500', 'text-danger-500']
+
+/** 1 a 5 personitas: qué tan llena suele estar la clase (promedio de las últimas clases). */
+function Concurrencia({ nivel }: { nivel: number }) {
+  const n = Math.min(5, Math.max(1, nivel))
+  const texto = CONCURRENCIA_TEXTO[n - 1]
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5" title={texto} aria-label={`Concurrencia: ${texto}`} role="img">
+      <span className="flex">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <User
+            key={i}
+            className={cn('-mx-px size-3.5', i <= n ? CONCURRENCIA_COLOR[n - 1] : 'text-white/15')}
+            fill={i <= n ? 'currentColor' : 'none'}
+            strokeWidth={i <= n ? 0 : 2}
+          />
+        ))}
+      </span>
+      <span className="text-[11px] text-white/40">{texto}</span>
+    </div>
   )
 }
