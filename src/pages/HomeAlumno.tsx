@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useQueryClient } from '@tanstack/react-query'
 import { differenceInCalendarDays } from 'date-fns'
 import { CalendarClock, CalendarDays, CheckCircle2, Download, ChevronLeft, Clock, GraduationCap, KeyRound, Loader2, Search, Sparkles, User } from 'lucide-react'
-import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
+import { Card, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { CountdownRing } from '@/components/ui/CountdownRing'
 import { Badge } from '@/components/ui/Badge'
+import { PullToRefresh } from '@/components/PullToRefresh'
 import { Stat } from '@/components/ui/Stat'
 import { cn, DIAS_SEMANA, formatHora, formatPorcentaje } from '@/lib/utils'
 import {
@@ -27,6 +29,7 @@ import type {
 export function HomeAlumno() {
   const { data: sesiones, isLoading } = useSesionActiva()
   const [sesionId, setSesionId] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const sesionActiva = useMemo(
     () => sesiones?.find((s) => s.sesion_id === sesionId) ?? sesiones?.[0] ?? null,
@@ -42,6 +45,8 @@ export function HomeAlumno() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
+      {/* Deslizar hacia abajo: vuelve a pedir todo lo del home (clase en curso, exámenes, horarios). */}
+      <PullToRefresh onRefresh={() => queryClient.refetchQueries({ type: 'active' })} />
       <ProximosParciales />
 
       {isLoading ? (
@@ -140,7 +145,6 @@ function HorariosPublicos() {
   const { data: horarios } = useHorariosPublicos()
   if (!horarios || horarios.length === 0) return null
 
-  const hayConcurrencia = horarios.some((h) => h.concurrencia != null)
   const porDia = new Map<number, HorarioPublicoRow[]>()
   for (const h of horarios) {
     const arr = porDia.get(h.dia_semana) ?? []
@@ -154,10 +158,6 @@ function HorariosPublicos() {
         <CalendarClock className="size-4 text-white/40" />
         <CardTitle className="text-base">Horarios de cursada</CardTitle>
       </div>
-      <CardSubtitle>
-        Día, horario y aula de cada comisión.
-        {hayConcurrencia && ' Las personitas muestran qué tan llena suele estar cada clase: podés ir a otra comisión si te queda mejor.'}
-      </CardSubtitle>
 
       <div className="mt-4 space-y-4">
         {[...porDia.entries()].map(([dia, items]) => (

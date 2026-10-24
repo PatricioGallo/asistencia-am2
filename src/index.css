@@ -4,6 +4,18 @@
 /* App instalada (PWA en pantalla de inicio): usa la navegación de celular. */
 @custom-variant standalone (@media (display-mode: standalone));
 
+/* Espacio arriba del header: la zona del notch (safe area) y, en la app instalada,
+   unos píxeles extra para que no quede pegado al notch. El extra solo aplica si
+   hay notch (min con el inset): en Android o en el navegador queda igual. */
+:root {
+  --header-pt: env(safe-area-inset-top);
+}
+@media (display-mode: standalone) {
+  :root {
+    --header-pt: calc(env(safe-area-inset-top) + min(env(safe-area-inset-top), 10px));
+  }
+}
+
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;

@@ -113,7 +113,7 @@ export function NotificacionesBell() {
       </button>
 
       {abierto && (
-        <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-bg-950/95 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
+        <div className="fixed inset-x-3 top-[calc(var(--header-pt)+4rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-bg-950/95 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96">
           <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
             <p className="font-display text-sm font-semibold text-white">Notificaciones</p>
             <div className="flex items-center gap-1">

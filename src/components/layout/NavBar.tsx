@@ -40,7 +40,7 @@ export function NavBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-bg-950/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl print:hidden">
+    <header className="sticky top-0 z-40 border-b border-white/5 bg-bg-950/80 pt-[var(--header-pt)] backdrop-blur-xl print:hidden">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <LogoMark />
@@ -167,7 +167,7 @@ function MenuDocente() {
       {abierto && (
         <div
           role="menu"
-          className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-bg-950/95 p-1.5 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-56"
+          className="fixed inset-x-3 top-[calc(var(--header-pt)+4rem)] z-50 overflow-hidden rounded-2xl border border-white/10 bg-bg-950/95 p-1.5 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-56"
         >
           {adminTabs.map((tab) => (
             <NavLink
