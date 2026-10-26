@@ -445,8 +445,10 @@ as $$
   left join lateral (
     -- Qué tan llena suele estar la clase (1 a 5 personitas): promedio de
     -- presentes de las últimas 3 clases dadas en ese horario (mismo día de la
-    -- semana, misma hora y alguna comisión en común). No cuenta paros/feriados
-    -- (sesiones sin código ni asistencias) ni la clase de hoy si no terminó.
+    -- semana, misma hora y alguna comisión en común). Solo cuentan clases en
+    -- las que se generó código (asistencia tomada en el aula): no paros ni
+    -- feriados, ni TPs con presentes cargados a mano, que no reflejan cuánta
+    -- gente fue. Tampoco la clase de hoy si no terminó.
     -- Solo se expone el nivel, no la cantidad exacta.
     select
       case
@@ -469,10 +471,7 @@ as $$
           join horario_comisiones hc2 on hc2.comision_id = sc.comision_id
           where sc.sesion_id = s.id and hc2.horario_id = h.id
         )
-        and (
-          exists (select 1 from codigos c where c.sesion_id = s.id)
-          or exists (select 1 from asistencias a2 where a2.sesion_id = s.id)
-        )
+        and exists (select 1 from codigos c where c.sesion_id = s.id)
       order by s.fecha desc
       limit 3
     ) u
