@@ -148,15 +148,36 @@ input[type="time"]::-webkit-datetime-edit {
    pelear con cada utilidad de opacidad (text-white/40, bg-white/[0.03], etc.)
    una por una. */
 @media print {
+  /* Sin margen arriba/abajo en la hoja: así el navegador no tiene dónde poner
+     su encabezado y pie (link de la página, fecha, título). El espacio de cada
+     hoja lo dan el padding del body (primera hoja) y las filas espaciadoras de
+     la tabla, que se repiten en todas las hojas (ver .fila-espaciadora). */
   @page {
     size: landscape;
-    margin: 12mm;
+    margin: 0;
   }
 
   html,
   body {
     background: white;
     color: black;
+  }
+
+  body {
+    padding: 10mm 12mm 0;
+  }
+
+  /* La tarjeta de la app no lleva borde en papel (se veía cortado entre hojas). */
+  .glass-panel.print-area {
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .print-area .fila-espaciadora,
+  .print-area .fila-espaciadora > * {
+    height: 8mm;
+    padding: 0 !important;
+    border: 0 !important;
   }
 
   /* Sin esto el navegador pinta oscuros los márgenes de la hoja (la app es dark). */

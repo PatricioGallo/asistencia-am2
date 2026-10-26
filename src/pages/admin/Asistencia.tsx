@@ -97,7 +97,22 @@ export function Asistencia() {
         ) : (
           <div className="overflow-x-auto">
             <table className="tabla-asistencia w-full text-left text-sm">
+              {/* Anchos de columna para el PDF (tabla de ancho fijo, ver index.css). Van
+                  acá y no en la primera fila porque esa es la espaciadora de impresión. */}
+              <colgroup>
+                <col className="col-alumno" />
+                {data.columnas.map((col) => (
+                  <col key={col.sesion_id} className="col-tp" />
+                ))}
+                <col className="col-presentes" />
+                <col className="col-porcentaje" />
+                <col className="col-cumple" />
+              </colgroup>
               <thead>
+                {/* Solo al imprimir: margen arriba de cada hoja (ver @page en index.css). */}
+                <tr className="fila-espaciadora hidden print:table-row" aria-hidden>
+                  <th colSpan={data.columnas.length + 4} />
+                </tr>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
                   <th className="col-alumno table-sticky-col px-5 py-3 font-medium">Alumno</th>
                   {data.columnas.map((col) => {
@@ -211,6 +226,12 @@ export function Asistencia() {
                   </tr>
                 ))}
               </tbody>
+              {/* Solo al imprimir: margen abajo de cada hoja. */}
+              <tfoot className="hidden print:table-footer-group" aria-hidden>
+                <tr className="fila-espaciadora">
+                  <td colSpan={data.columnas.length + 4} />
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
