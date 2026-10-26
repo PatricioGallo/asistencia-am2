@@ -96,17 +96,17 @@ export function Asistencia() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="tabla-asistencia w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
-                  <th className="table-sticky-col px-5 py-3 font-medium">Alumno</th>
+                  <th className="col-alumno table-sticky-col px-5 py-3 font-medium">Alumno</th>
                   {data.columnas.map((col) => {
                     const futura = esFutura(col)
                     return (
                       <th
                         key={`${col.sesion_id}`}
                         className={cn(
-                          'max-w-20 whitespace-nowrap px-3 py-3 text-center align-top font-medium',
+                          'col-tp max-w-20 whitespace-nowrap px-3 py-3 text-center align-top font-medium',
                           !col.dada && (futura ? 'opacity-25' : 'opacity-40'),
                           col.sesion_id === primeraFuturaId && 'border-l border-dashed border-white/15 pl-5',
                         )}
@@ -124,24 +124,23 @@ export function Asistencia() {
                           {col.clase_nombre.includes(':') ? col.clase_nombre.split(':')[0].trim() : col.clase_nombre}
                         </div>
                         <div className="font-normal normal-case tracking-normal text-white/30" title={formatFecha(col.fecha)}>
-                          <span className="print:hidden">{formatFecha(col.fecha).slice(0, 5)}</span>
-                          <span className="hidden print:inline">{formatFecha(col.fecha)}</span>
+                          {formatFecha(col.fecha).slice(0, 5)}
                         </div>
                         {!col.dada && !futura && (
-                          <div className="text-[10px] font-normal normal-case tracking-normal text-white/40">sin clase</div>
+                          <div className="text-[10px] font-normal normal-case tracking-normal text-white/40 print:hidden">sin clase</div>
                         )}
                       </th>
                     )
                   })}
-                  <th className="px-3 py-3 text-center font-medium">Presentes</th>
-                  <th className="px-3 py-3 text-center font-medium">%</th>
-                  <th className="px-5 py-3 text-center font-medium">{porcentajeRequerido}%</th>
+                  <th className="col-presentes px-3 py-3 text-center font-medium">Presentes</th>
+                  <th className="col-porcentaje px-3 py-3 text-center font-medium">%</th>
+                  <th className="col-cumple px-5 py-3 text-center font-medium">{porcentajeRequerido}%</th>
                 </tr>
               </thead>
               <tbody>
                 {data.alumnos.map((a) => (
                   <tr key={a.alumno_id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                    <td className="table-sticky-col px-5 py-3 text-white">
+                    <td className="col-alumno table-sticky-col px-5 py-3 text-white">
                       <div className="font-medium">
                         {a.apellido}, {a.nombre}
                       </div>

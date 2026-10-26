@@ -12,8 +12,9 @@ import {
   subMonths,
 } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, FileText, KeyRound, Pencil, Plus, Smartphone, Sparkles, Trash2, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileText, GraduationCap, KeyRound, Pencil, Plus, Smartphone, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
@@ -36,6 +37,8 @@ import { useClases, useCrearClaseConSesiones, type NuevaSesionInput } from '@/li
 import { useEliminarAsistencia, usePresentesSesion, type PresenteSesion } from '@/lib/queries/asistencias'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 import { PDF_MAX_MB, urlVerPdf, useQuitarPdfClase, useSubirPdfClase, validarPdf } from '@/lib/queries/pdfTps'
+import { useFechasParciales } from '@/lib/queries/fechasParciales'
+import type { FechaParcial } from '@/lib/database.types'
 
 export function Calendario() {
   const [mesActual, setMesActual] = useState(() => startOfMonth(new Date()))
@@ -67,6 +70,23 @@ export function Calendario() {
     }
     return map
   }, [sesiones])
+
+  // Parciales y recuperatorios (se cargan en Configuración): aparecen en su fecha.
+  const navigate = useNavigate()
+  const { data: fechasParciales } = useFechasParciales()
+  const parcialesPorDia = useMemo(() => {
+    const map = new Map<string, FechaParcial[]>()
+    for (const f of fechasParciales ?? []) {
+      const arr = map.get(f.fecha) ?? []
+      arr.push(f)
+      map.set(f.fecha, arr)
+    }
+    return map
+  }, [fechasParciales])
+  const irAParciales = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigate('/admin/configuracion')
+  }
 
   return (
     <div className="space-y-6">
@@ -106,6 +126,8 @@ export function Calendario() {
           {dias.map((dia) => {
             const iso = format(dia, 'yyyy-MM-dd')
             const eventos = sesionesPorDia.get(iso) ?? []
+            const parciales = parcialesPorDia.get(iso) ?? []
+            const lugares = Math.max(0, 3 - parciales.length)
             const enMes = isSameMonth(dia, mesActual)
             return (
               <button
@@ -125,7 +147,20 @@ export function Calendario() {
                   {format(dia, 'd')}
                 </span>
                 <div className="flex w-full flex-col gap-1">
-                  {eventos.slice(0, 3).map((ev) => (
+                  {parciales.map((f) => (
+                    <span
+                      key={f.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={irAParciales}
+                      title={`${f.nombre}${f.hora ? ` · ${formatHora(f.hora)}` : ''}${f.aula ? ` · Aula ${f.aula}` : ''} (se edita en Configuración)`}
+                      className="flex items-center gap-1 truncate rounded-lg bg-warn-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-warn-500 hover:bg-warn-500/25"
+                    >
+                      <GraduationCap className="size-3 shrink-0" />
+                      <span className="truncate">{f.nombre}</span>
+                    </span>
+                  ))}
+                  {eventos.slice(0, lugares).map((ev) => (
                     <span
                       key={ev.id}
                       role="button"
@@ -139,7 +174,9 @@ export function Calendario() {
                       {ev.clases?.nombre} · {ev.comisiones.map((c) => c.nombre).join(' + ')}
                     </span>
                   ))}
-                  {eventos.length > 3 && <span className="text-[10px] text-white/30">+{eventos.length - 3} más</span>}
+                  {eventos.length > lugares && (
+                    <span className="text-[10px] text-white/30">+{eventos.length - lugares} más</span>
+                  )}
                 </div>
               </button>
             )
@@ -155,6 +192,7 @@ export function Calendario() {
             .map((dia) => {
               const iso = format(dia, 'yyyy-MM-dd')
               const eventos = sesionesPorDia.get(iso) ?? []
+              const parciales = parcialesPorDia.get(iso) ?? []
               return (
                 <button
                   key={iso}
@@ -178,9 +216,25 @@ export function Calendario() {
                     </span>
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1.5">
-                    {eventos.length === 0 ? (
+                    {parciales.map((f) => (
+                      <span
+                        key={f.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={irAParciales}
+                        className="flex items-center gap-1.5 rounded-lg bg-warn-500/15 px-2.5 py-1.5 text-sm font-semibold text-warn-500 hover:bg-warn-500/25"
+                      >
+                        <GraduationCap className="size-4 shrink-0" />
+                        <span>
+                          {f.nombre}
+                          {f.hora ? ` · ${formatHora(f.hora)}` : ''}
+                          {f.aula ? ` · Aula ${f.aula}` : ''}
+                        </span>
+                      </span>
+                    ))}
+                    {eventos.length === 0 && parciales.length === 0 ? (
                       <span className="text-sm text-white/25">Sin clases</span>
-                    ) : (
+                    ) : eventos.length === 0 ? null : (
                       eventos.map((ev) => (
                         <span
                           key={ev.id}

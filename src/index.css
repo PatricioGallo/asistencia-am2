@@ -153,9 +153,15 @@ input[type="time"]::-webkit-datetime-edit {
     margin: 12mm;
   }
 
+  html,
   body {
     background: white;
     color: black;
+  }
+
+  /* Sin esto el navegador pinta oscuros los márgenes de la hoja (la app es dark). */
+  html {
+    color-scheme: light;
   }
 
   .print-area,
@@ -184,5 +190,100 @@ input[type="time"]::-webkit-datetime-edit {
   .print-area td {
     border: 1px solid #d1d5db !important;
     padding: 4px 6px !important;
+  }
+
+  /* Planilla de asistencia: los 24 TP + resumen tienen que entrar en el ancho
+     de una hoja apaisada. Columnas de ancho fijo: el nombre del alumno es lo
+     único que se queda grande, todo lo demás se achica. */
+  .print-area .tabla-asistencia {
+    width: 100% !important;
+    table-layout: fixed;
+    font-size: 7px;
+  }
+
+  .print-area .tabla-asistencia th,
+  .print-area .tabla-asistencia td {
+    padding: 0.5px 1px !important;
+    text-align: center;
+    letter-spacing: 0 !important;
+    line-height: 1.15;
+  }
+
+  .print-area .tabla-asistencia th {
+    font-size: 6px;
+  }
+
+  /* Nombre y legajo en un solo renglón para que las filas sean bajas. */
+  .print-area .tabla-asistencia .col-alumno {
+    position: static !important;
+    width: 56mm;
+    padding: 0.5px 3px !important;
+    text-align: left;
+    font-size: 7.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .print-area .tabla-asistencia .col-alumno > div {
+    display: inline;
+  }
+
+  .print-area .tabla-asistencia .col-alumno .text-xs {
+    font-size: 6px;
+    margin-left: 4px;
+  }
+
+  .print-area .tabla-asistencia th.col-tp {
+    max-width: none;
+    font-size: 6.5px;
+  }
+
+  .print-area .tabla-asistencia th.col-tp .truncate {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .print-area .tabla-asistencia th.col-tp div + div {
+    font-size: 5.5px;
+  }
+
+  .print-area .tabla-asistencia .col-presentes {
+    width: 12mm;
+  }
+
+  .print-area .tabla-asistencia .col-porcentaje {
+    width: 10mm;
+  }
+
+  .print-area .tabla-asistencia .col-cumple {
+    width: 15mm;
+  }
+
+  /* Tildes, cruces y guiones en miniatura */
+  .print-area .tabla-asistencia td .size-6 {
+    width: 8px !important;
+    height: 8px !important;
+  }
+
+  .print-area .tabla-asistencia td svg {
+    width: 6.5px !important;
+    height: 6.5px !important;
+  }
+
+  .print-area .tabla-asistencia td span[class*="rounded-full"],
+  .print-area .tabla-asistencia td .rounded-full {
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 6.5px;
+    line-height: 1.1;
+  }
+
+  /* El badge "Cumple / No cumple" */
+  .print-area .tabla-asistencia .col-cumple span {
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 6.5px;
+    white-space: normal;
   }
 }
