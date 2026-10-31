@@ -307,4 +307,64 @@ input[type="time"]::-webkit-datetime-edit {
     font-size: 6.5px;
     white-space: normal;
   }
+
+  /* Planilla de parciales: tiene pocas columnas, así que la letra queda más
+     grande que en la de asistencia; lo que achica son las filas, de un renglón. */
+  .print-area .tabla-parciales {
+    width: 100% !important;
+    table-layout: fixed;
+    font-size: 9px;
+  }
+
+  .print-area .tabla-parciales th,
+  .print-area .tabla-parciales td {
+    padding: 1.5px 4px !important;
+    text-align: center;
+    letter-spacing: 0 !important;
+    line-height: 1.2;
+    break-inside: avoid;
+  }
+
+  .print-area .tabla-parciales th {
+    font-size: 8px;
+  }
+
+  .print-area .tabla-parciales .col-alumno {
+    position: static !important;
+    width: 34%;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .print-area .tabla-parciales .col-alumno > div {
+    display: inline;
+  }
+
+  .print-area .tabla-parciales .col-alumno .text-xs {
+    font-size: 8px;
+    margin-left: 6px;
+  }
+
+  /* El tipo de recuperatorio al lado de la nota, no arriba. */
+  .print-area .tabla-parciales td .flex-col {
+    flex-direction: row;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .print-area .tabla-parciales td .text-xs,
+  .print-area .tabla-parciales td [class*="text-[10px]"] {
+    font-size: 8px;
+  }
+
+  /* Notas y estado como texto, sin la píldora de la pantalla. */
+  .print-area .tabla-parciales td span[class*="rounded-full"] {
+    min-width: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    font-size: 9px;
+    line-height: 1.2;
+  }
 }

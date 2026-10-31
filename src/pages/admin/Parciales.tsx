@@ -26,6 +26,9 @@ import { ETIQUETAS_SITUACION, type Situacion } from '@/lib/estadisticas'
 
 const SITUACIONES = Object.keys(ETIQUETAS_SITUACION) as Situacion[]
 
+/** Sin Asistencia ni el lápiz, que no salen en el PDF. */
+const COLUMNAS_PDF = 6
+
 export function Parciales() {
   const { data: comisiones } = useComisiones()
   const [comisionId, setComisionId] = useState<string>('')
@@ -137,10 +140,19 @@ export function Parciales() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="tabla-parciales w-full text-left text-sm">
+              {/* Ancho de la columna para el PDF (ver index.css). Va acá y no en la primera
+                  fila porque esa es la espaciadora de impresión. */}
+              <colgroup>
+                <col className="col-alumno" />
+              </colgroup>
               <thead>
+                {/* Solo al imprimir: margen arriba de cada hoja (ver @page en index.css). */}
+                <tr className="fila-espaciadora hidden print:table-row" aria-hidden>
+                  <th colSpan={COLUMNAS_PDF} />
+                </tr>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
-                  <th className="table-sticky-col px-5 py-3 font-medium">Alumno</th>
+                  <th className="col-alumno table-sticky-col px-5 py-3 font-medium">Alumno</th>
                   <th className="px-3 py-3 text-center font-medium print:hidden">Asistencia</th>
                   <th className="px-3 py-3 text-center font-medium">Parcial 1</th>
                   <th className="px-3 py-3 text-center font-medium">Parcial 2</th>
@@ -155,7 +167,7 @@ export function Parciales() {
                   const estado = calcularEstadoNotas(a.parcial_1, a.parcial_2, a.recuperatorio_1, a.recuperatorio_2, notaAprobacion)
                   return (
                     <tr key={a.alumno_id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                      <td className="table-sticky-col px-5 py-3 text-white">
+                      <td className="col-alumno table-sticky-col px-5 py-3 text-white">
                         <div className="font-medium">
                           {a.apellido}, {a.nombre}
                         </div>
@@ -204,6 +216,12 @@ export function Parciales() {
                   )
                 })}
               </tbody>
+              {/* Solo al imprimir: margen abajo de cada hoja. */}
+              <tfoot className="hidden print:table-footer-group" aria-hidden>
+                <tr className="fila-espaciadora">
+                  <td colSpan={COLUMNAS_PDF} />
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
