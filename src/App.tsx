@@ -10,6 +10,7 @@ const Calendario = lazy(() => import('@/pages/admin/Calendario').then((m) => ({ 
 const MisAlumnos = lazy(() => import('@/pages/admin/MisAlumnos').then((m) => ({ default: m.MisAlumnos })))
 const Asistencia = lazy(() => import('@/pages/admin/Asistencia').then((m) => ({ default: m.Asistencia })))
 const Parciales = lazy(() => import('@/pages/admin/Parciales').then((m) => ({ default: m.Parciales })))
+const Estadisticas = lazy(() => import('@/pages/admin/Estadisticas').then((m) => ({ default: m.Estadisticas })))
 const Configuracion = lazy(() => import('@/pages/admin/Configuracion').then((m) => ({ default: m.Configuracion })))
 
 function AdminFallback() {
@@ -84,6 +85,16 @@ export default function App() {
             <ProtectedRoute>
               <Suspense fallback={<AdminFallback />}>
                 <Parciales />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/estadisticas"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<AdminFallback />}>
+                <Estadisticas />
               </Suspense>
             </ProtectedRoute>
           }

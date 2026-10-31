@@ -4,9 +4,10 @@ import { FileDown, GraduationCap, Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input, Select } from '@/components/ui/Field'
+import { Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { SelectorAlumno } from '@/components/SelectorAlumno'
 import { cn, esIosStandalone, formatNota, formatPorcentaje } from '@/lib/utils'
 import {
   calcularEstadoNotas,
@@ -102,7 +103,7 @@ export function Parciales() {
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-white/40">
                   <th className="table-sticky-col px-5 py-3 font-medium">Alumno</th>
-                  <th className="px-3 py-3 text-center font-medium">Asistencia</th>
+                  <th className="px-3 py-3 text-center font-medium print:hidden">Asistencia</th>
                   <th className="px-3 py-3 text-center font-medium">Parcial 1</th>
                   <th className="px-3 py-3 text-center font-medium">Parcial 2</th>
                   <th className="px-3 py-3 text-center font-medium">Recuperatorio 1</th>
@@ -122,7 +123,7 @@ export function Parciales() {
                         </div>
                         <div className="text-xs text-white/40">{a.legajo}</div>
                       </td>
-                      <td className="px-3 py-3 text-center">
+                      <td className="px-3 py-3 text-center print:hidden">
                         <span
                           className={cn(
                             'inline-flex min-w-12 items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold',
@@ -289,19 +290,12 @@ function ModalCargarNotas({
   return (
     <Modal open onClose={onClose} title="Cargar notas">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Select
-          label="Alumno"
+        <SelectorAlumno
+          alumnos={notas.map((a) => ({ id: a.alumno_id, apellido: a.apellido, nombre: a.nombre, legajo: a.legajo }))}
           value={alumnoId}
-          onChange={(e) => setAlumnoId(e.target.value)}
+          onChange={setAlumnoId}
           disabled={!!alumnoIdInicial}
-        >
-          <option value="">Elegir alumno…</option>
-          {notas.map((a) => (
-            <option key={a.alumno_id} value={a.alumno_id}>
-              {a.apellido}, {a.nombre} ({a.legajo})
-            </option>
-          ))}
-        </Select>
+        />
         <div className="grid grid-cols-2 gap-3">
           <Input label="Parcial 1" placeholder="0-10 o 'A'" value={parcial1} onChange={(e) => setParcial1(e.target.value)} />
           <Input label="Parcial 2" placeholder="0-10 o 'A'" value={parcial2} onChange={(e) => setParcial2(e.target.value)} />

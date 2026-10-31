@@ -41,6 +41,7 @@ Abrí `http://localhost:5173`. La home (`/`) es la vista del alumno. Para entrar
 2. Durante el horario programado de una sesión, aparece el botón **Generar código** (vale 60 segundos, lo volvés a generar cuantas veces haga falta).
 3. **Mis alumnos**: cargalos a mano o importá un CSV con columnas `legajo, nombre, apellido, comision`.
 4. **Asistencia**: tabla por comisión con presentes, % y si cumple el 75% requerido. Ahí también podés cargar una asistencia manual (por ejemplo, si no llegaste a anotar el código), eligiendo cualquier alumno y cualquier clase — si asistió a la sesión de otra comisión, igual cuenta.
+5. **Estadísticas**: situación de los alumnos (regulares, cursando, desaprobados y libres), presentes, parciales y evolución de la asistencia, en general o por comisión, con gráficos y tabla. Las definiciones de cada situación están en [`src/lib/estadisticas.ts`](src/lib/estadisticas.ts).
 
 ## 5. Deploy a Vercel
 

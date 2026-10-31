@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
+  BarChart3,
   CalendarDays,
   ChevronDown,
   ClipboardList,
@@ -22,6 +23,7 @@ const adminTabs = [
   { to: '/admin/alumnos', label: 'Mis alumnos', icon: Users },
   { to: '/admin/asistencia', label: 'Asistencia', icon: ClipboardList },
   { to: '/admin/parciales', label: 'Parciales', icon: GraduationCap },
+  { to: '/admin/estadisticas', label: 'Estadísticas', icon: BarChart3 },
   { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
 ]
 

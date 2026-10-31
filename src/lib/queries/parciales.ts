@@ -16,7 +16,7 @@ export interface AlumnoNotas {
   recuperatorio_2: NotaValor
 }
 
-function combinarNota(valor: number | null, ausente: boolean): NotaValor {
+export function combinarNota(valor: number | null, ausente: boolean): NotaValor {
   return ausente ? 'ausente' : valor
 }
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
+import { SelectorAlumno } from '@/components/SelectorAlumno'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { cn, esIosStandalone, formatFecha, formatPorcentaje } from '@/lib/utils'
 import { useComisiones } from '@/lib/queries/comisiones'
@@ -279,14 +280,7 @@ function ModalCargaManual({ onClose }: { onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title="Cargar asistencia manual">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Select label="Alumno" value={alumnoId} onChange={(e) => setAlumnoId(e.target.value)}>
-          <option value="">Elegir alumno…</option>
-          {alumnos?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.apellido}, {a.nombre} ({a.legajo})
-            </option>
-          ))}
-        </Select>
+        <SelectorAlumno alumnos={alumnos ?? []} value={alumnoId} onChange={setAlumnoId} />
         <Select label="Clase" value={sesionId} onChange={(e) => setSesionId(e.target.value)}>
           <option value="">Elegir clase…</option>
           {sesionesOrdenadas.map((s) => (
