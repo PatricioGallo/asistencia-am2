@@ -21,12 +21,17 @@ import {
 import { useComisiones } from '@/lib/queries/comisiones'
 import { useCargarNotas, useNotasComision, type AlumnoNotas } from '@/lib/queries/parciales'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
+import { useSituaciones } from '@/lib/queries/estadisticas'
+import { ETIQUETAS_SITUACION, type Situacion } from '@/lib/estadisticas'
+
+const SITUACIONES = Object.keys(ETIQUETAS_SITUACION) as Situacion[]
 
 export function Parciales() {
   const { data: comisiones } = useComisiones()
   const [comisionId, setComisionId] = useState<string>('')
   const [alumnoEditando, setAlumnoEditando] = useState<{ id: string } | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [filtro, setFiltro] = useState<Situacion | 'total'>('total')
 
   useEffect(() => {
     if (!comisionId && comisiones && comisiones.length > 0) setComisionId(comisiones[0].id)
@@ -36,11 +41,17 @@ export function Parciales() {
   const { data: config } = useConfiguracionProfesor()
   const notaAprobacion = config?.nota_aprobacion ?? 4
 
+  const { situaciones, isError: errorSituaciones } = useSituaciones()
+
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
+
+  const cantidadEn = (s: Situacion) => notas?.filter((a) => situaciones?.get(a.alumno_id) === s).length
+  const alumnosVisibles = filtro === 'total' ? notas : situaciones && notas?.filter((a) => situaciones.get(a.alumno_id) === filtro)
+  const etiquetaFiltro = filtro === 'total' ? null : ETIQUETAS_SITUACION[filtro]
 
   function handleDescargarPdf() {
     if (esIosStandalone()) {
-      toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión ahí y tocá Descargar PDF.')
+      toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión y el filtro ahí y tocá Descargar PDF.')
       window.open(window.location.href, '_blank')
       return
     }
@@ -63,7 +74,21 @@ export function Parciales() {
                 </option>
               ))}
             </select>
-            <Button variant="secondary" onClick={handleDescargarPdf} disabled={!comisionId || !notas}>
+            <select
+              className="input-field w-auto"
+              aria-label="Filtrar por situación"
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value as Situacion | 'total')}
+            >
+              <option value="total">Total{notas ? ` (${notas.length})` : ''}</option>
+              {SITUACIONES.map((s) => (
+                <option key={s} value={s}>
+                  {ETIQUETAS_SITUACION[s]}
+                  {notas && situaciones ? ` (${cantidadEn(s)})` : ''}
+                </option>
+              ))}
+            </select>
+            <Button variant="secondary" onClick={handleDescargarPdf} disabled={!comisionId || !alumnosVisibles?.length}>
               <FileDown className="size-4" />
               Descargar PDF
             </Button>
@@ -81,8 +106,12 @@ export function Parciales() {
       </Card>
 
       <div className="print-area hidden print:block">
-        <h1 className="text-xl font-bold">Parciales — {comisionNombre}</h1>
+        <h1 className="text-xl font-bold">
+          Parciales — {comisionNombre}
+          {etiquetaFiltro && ` — ${etiquetaFiltro}`}
+        </h1>
         <p className="text-sm">
+          {etiquetaFiltro && `${alumnosVisibles?.length} de ${notas?.length} alumnos · `}
           Se aprueba con nota mayor o igual a {formatNota(notaAprobacion)} · Generado el {format(new Date(), 'dd/MM/yyyy')}
         </p>
       </div>
@@ -90,12 +119,21 @@ export function Parciales() {
       <Card className="print-area overflow-hidden p-0">
         {!comisionId ? (
           <p className="p-10 text-center text-white/40">Creá una comisión para empezar.</p>
-        ) : isLoading ? (
+        ) : etiquetaFiltro && !situaciones && errorSituaciones ? (
+          <p className="p-10 text-center text-danger-500">No se pudo calcular la situación de los alumnos.</p>
+        ) : isLoading || !alumnosVisibles && !!notas ? (
           <p className="p-10 text-center text-white/40">Cargando…</p>
         ) : !notas || notas.length === 0 ? (
           <div className="flex flex-col items-center gap-2 p-10 text-center">
             <GraduationCap className="size-8 text-white/20" />
             <p className="text-white/50">Todavía no hay alumnos en {comisionNombre}.</p>
+          </div>
+        ) : !alumnosVisibles?.length ? (
+          <div className="flex flex-col items-center gap-2 p-10 text-center">
+            <GraduationCap className="size-8 text-white/20" />
+            <p className="text-white/50">
+              No hay alumnos en "{etiquetaFiltro}" en {comisionNombre}.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -113,7 +151,7 @@ export function Parciales() {
                 </tr>
               </thead>
               <tbody>
-                {notas.map((a) => {
+                {alumnosVisibles.map((a) => {
                   const estado = calcularEstadoNotas(a.parcial_1, a.parcial_2, a.recuperatorio_1, a.recuperatorio_2, notaAprobacion)
                   return (
                     <tr key={a.alumno_id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">

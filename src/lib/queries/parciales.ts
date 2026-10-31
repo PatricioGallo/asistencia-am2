@@ -124,6 +124,10 @@ export function useCargarNotas() {
       )
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notas-comision'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notas-comision'] })
+      // Una nota nueva puede cambiar la situación del alumno.
+      qc.invalidateQueries({ queryKey: ['estadisticas'] })
+    },
   })
 }

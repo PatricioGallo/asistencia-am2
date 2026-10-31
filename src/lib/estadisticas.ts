@@ -11,6 +11,13 @@ import { calcularEstadoNotas, type NotaValor } from './notas'
  */
 export type Situacion = 'regular' | 'cursando' | 'desaprobado' | 'libre'
 
+export const ETIQUETAS_SITUACION: Record<Situacion, string> = {
+  regular: 'Regulares',
+  cursando: 'Siguen cursando',
+  desaprobado: 'Desaprobados',
+  libre: 'Libres',
+}
+
 export type ResultadoParcial = 'aprobo' | 'desaprobo' | 'ausente' | 'sinNota'
 
 export interface AlumnoEstadistica {
@@ -207,13 +214,17 @@ export function calcularResumenes(
     return n
   }
 
+  function situacionDe(a: AlumnoEstadistica) {
+    return calcularSituacion(a, restantesDe(a), porcentajeRequerido, notaAprobacion)
+  }
+
   function resumir(alumnos: AlumnoEstadistica[], comisionId: string | null): Resumen {
     const situacion: Record<Situacion, number> = { regular: 0, cursando: 0, desaprobado: 0, libre: 0 }
     const bandasAsistencia = BANDAS_ASISTENCIA.map(() => 0)
     let enRiesgo = 0
 
     for (const a of alumnos) {
-      const s = calcularSituacion(a, restantesDe(a), porcentajeRequerido, notaAprobacion)
+      const s = situacionDe(a)
       situacion[s]++
       if (s === 'cursando' && !a.cumple_minimo) enRiesgo++
       bandasAsistencia[indiceBanda(a.porcentaje)]++
@@ -268,7 +279,7 @@ export function calcularResumenes(
     }
   }
 
-  return { resumir }
+  return { resumir, situacionDe }
 }
 
 /**

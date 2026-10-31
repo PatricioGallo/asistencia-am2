@@ -1,7 +1,16 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { format } from 'date-fns'
 import { supabase } from '../supabaseClient'
 import { useAuth } from '../auth'
-import type { AsistenciaEstadistica, DatosEstadisticas, SesionEstadistica } from '../estadisticas'
+import {
+  calcularResumenes,
+  type AsistenciaEstadistica,
+  type DatosEstadisticas,
+  type SesionEstadistica,
+  type Situacion,
+} from '../estadisticas'
+import { useConfiguracionProfesor } from './configuracionProfesor'
 import { combinarNota } from './parciales'
 
 const TAMANO_PAGINA = 1000
@@ -105,4 +114,21 @@ export function useDatosEstadisticas() {
       }
     },
   })
+}
+
+/** Situación de cada alumno, por id: el mismo cálculo que la página de estadísticas. */
+export function useSituaciones() {
+  const { data: datos, isError } = useDatosEstadisticas()
+  const { data: config } = useConfiguracionProfesor()
+  const porcentajeRequerido = config?.porcentaje_requerido ?? 75
+  const notaAprobacion = config?.nota_aprobacion ?? 4
+  const hoy = format(new Date(), 'yyyy-MM-dd')
+
+  const situaciones = useMemo(() => {
+    if (!datos) return null
+    const { situacionDe } = calcularResumenes(datos, porcentajeRequerido, notaAprobacion, hoy)
+    return new Map<string, Situacion>(datos.alumnos.map((a) => [a.alumno_id, situacionDe(a)]))
+  }, [datos, porcentajeRequerido, notaAprobacion, hoy])
+
+  return { situaciones, isError }
 }

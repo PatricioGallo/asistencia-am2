@@ -21,6 +21,7 @@ import {
   BANDAS_ASISTENCIA,
   calcularHorarios,
   calcularResumenes,
+  ETIQUETAS_SITUACION,
   type ResultadoParcial,
   type Resumen,
   type ResumenParcial,
@@ -34,10 +35,10 @@ import { useHorarios } from '@/lib/queries/horarios'
 // Paleta validada contra la superficie de la app (contraste y daltonismo), en este orden.
 // Ámbar = problema de asistencia, rojo = problema de notas, en todos los gráficos.
 const SERIES_SITUACION: Serie<Situacion>[] = [
-  { clave: 'regular', etiqueta: 'Regulares', color: '#0ca30c' },
-  { clave: 'cursando', etiqueta: 'Siguen cursando', color: '#6366f1' },
-  { clave: 'desaprobado', etiqueta: 'Desaprobados', color: '#d03b3b' },
-  { clave: 'libre', etiqueta: 'Libres', color: '#c98500' },
+  { clave: 'regular', etiqueta: ETIQUETAS_SITUACION.regular, color: '#0ca30c' },
+  { clave: 'cursando', etiqueta: ETIQUETAS_SITUACION.cursando, color: '#6366f1' },
+  { clave: 'desaprobado', etiqueta: ETIQUETAS_SITUACION.desaprobado, color: '#d03b3b' },
+  { clave: 'libre', etiqueta: ETIQUETAS_SITUACION.libre, color: '#c98500' },
 ]
 
 const SERIES_PARCIAL: Serie<ResultadoParcial>[] = [
