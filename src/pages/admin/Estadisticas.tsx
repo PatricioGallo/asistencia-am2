@@ -1,6 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, FileDown } from 'lucide-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/Button'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Stat } from '@/components/ui/Stat'
 import {
@@ -16,7 +18,7 @@ import {
   type ModoValor,
   type Serie,
 } from '@/components/Graficos'
-import { cn, DIAS_SEMANA, formatFecha, formatHora, formatNota } from '@/lib/utils'
+import { cn, DIAS_SEMANA, esIosStandalone, formatFecha, formatHora, formatNota } from '@/lib/utils'
 import {
   BANDAS_ASISTENCIA,
   calcularHorarios,
@@ -45,7 +47,7 @@ const SERIES_PARCIAL: Serie<ResultadoParcial>[] = [
   { clave: 'aprobo', etiqueta: 'Aprobaron', color: '#0891b2' },
   { clave: 'desaprobo', etiqueta: 'Desaprobaron', color: '#d03b3b' },
   { clave: 'ausente', etiqueta: 'Ausentes', color: '#c98500' },
-  { clave: 'sinNota', etiqueta: 'Sin nota', color: 'rgba(255,255,255,0.14)' },
+  { clave: 'sinNota', etiqueta: 'Sin nota', color: 'var(--color-sin-nota)' },
 ]
 
 const COLOR_PRINCIPAL = '#6366f1'
@@ -85,10 +87,21 @@ export function Estadisticas() {
   const seleccionada = calculo?.porComision.find((c) => c.id === comisionId)
   const resumen = seleccionada?.resumen ?? calculo?.general
   const resaltadaId = seleccionada?.id
+  const hayDatos = !!calculo && !!resumen && resumen.alumnos > 0
+
+  function handleDescargarPdf() {
+    if (esIosStandalone()) {
+      toast.info('Safari no permite imprimir dentro de la app instalada. Te abrimos esta página en Safari: elegí de nuevo la comisión ahí y tocá Descargar PDF.')
+      window.open(window.location.href, '_blank')
+      return
+    }
+    window.print()
+  }
 
   return (
     <TooltipProvider>
-      <div className="space-y-6">
+      {/* hoja-estadisticas: la versión en claro del PDF (ver index.css). */}
+      <div className="hoja-estadisticas space-y-6">
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -97,7 +110,7 @@ export function Estadisticas() {
                 {seleccionada ? `Comisión ${seleccionada.nombre}` : 'Todas las comisiones'} · Datos al {formatFecha(hoy)}
               </CardSubtitle>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 print:hidden">
               <select className="input-field w-auto" value={comisionId} onChange={(e) => setComisionId(e.target.value)}>
                 <option value="todas">Todas las comisiones</option>
                 {comisiones?.map((c) => (
@@ -126,6 +139,10 @@ export function Estadisticas() {
                   </button>
                 ))}
               </div>
+              <Button variant="secondary" onClick={handleDescargarPdf} disabled={!hayDatos}>
+                <FileDown className="size-4" />
+                Descargar PDF
+              </Button>
             </div>
           </div>
         </Card>
@@ -138,7 +155,7 @@ export function Estadisticas() {
           <Card>
             <p className="p-4 text-center text-white/50">No pudimos cargar las estadísticas. Probá de nuevo en un rato.</p>
           </Card>
-        ) : !calculo || !resumen || resumen.alumnos === 0 ? (
+        ) : !hayDatos || !calculo || !resumen ? (
           <Card>
             <div className="flex flex-col items-center gap-2 p-6 text-center">
               <BarChart3 className="size-8 text-white/20" />
@@ -150,7 +167,7 @@ export function Estadisticas() {
             <Indicadores resumen={resumen} porcentajeRequerido={porcentajeRequerido} />
             <SituacionGeneral resumen={resumen} porcentajeRequerido={porcentajeRequerido} />
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2 print:grid-cols-2">
               <Panel titulo="Situación por comisión" subtitulo="A la derecha, los libres de cada comisión.">
                 <BarrasApiladas
                   series={SERIES_SITUACION}
@@ -218,7 +235,7 @@ export function Estadisticas() {
               nombreSeleccionada={seleccionada?.nombre}
             />
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2 print:grid-cols-2">
               <Panel titulo="Distribución de la asistencia" subtitulo={`Alumnos según su porcentaje de asistencia. Se necesita ${porcentajeRequerido}%.`}>
                 <Columnas items={BANDAS_ASISTENCIA.map((b, i) => ({ etiqueta: b, valor: resumen.bandasAsistencia[i], color: COLOR_PRINCIPAL }))} />
               </Panel>
@@ -256,7 +273,7 @@ function Indicadores({ resumen, porcentajeRequerido }: { resumen: Resumen; porce
   const { alumnos, activos, asistenciaPromedio, presentesPromedio, inscriptosPromedio, cumplen, clasesDadas, clasesProgramadas, clasesRestantes, clasesSinDar } = resumen
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6 print:grid-cols-6">
       <Card className="p-4">
         <Stat label="Alumnos" value={String(alumnos)} detalle="En la lista" />
       </Card>
@@ -300,7 +317,7 @@ function SituacionGeneral({ resumen, porcentajeRequerido }: { resumen: Resumen; 
   return (
     <Panel titulo="Situación de los alumnos">
       <BarraFina series={SERIES_SITUACION} valores={resumen.situacion} />
-      <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
         {SERIES_SITUACION.map((s) => (
           <li key={s.clave}>
             <div className="flex items-center gap-2 text-sm text-white/70">
@@ -413,6 +430,26 @@ function Evolucion({ resumen, general, nombreSeleccionada }: { resumen: Resumen;
 
   const clasesManuales = resumen.serie.filter((p) => p.soloManual).length
 
+  // En el PDF van también los números de cada clase: se abre el desplegable mientras se imprime.
+  const detalle = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    let estabaAbierto = false
+    const antes = () => {
+      if (!detalle.current) return
+      estabaAbierto = detalle.current.open
+      detalle.current.open = true
+    }
+    const despues = () => {
+      if (detalle.current) detalle.current.open = estabaAbierto
+    }
+    window.addEventListener('beforeprint', antes)
+    window.addEventListener('afterprint', despues)
+    return () => {
+      window.removeEventListener('beforeprint', antes)
+      window.removeEventListener('afterprint', despues)
+    }
+  }, [])
+
   return (
     <Panel titulo="Evolución de la asistencia" subtitulo="Porcentaje de alumnos presentes en cada clase, en orden de cursada.">
       {puntos.length === 0 ? (
@@ -431,9 +468,9 @@ function Evolucion({ resumen, general, nombreSeleccionada }: { resumen: Resumen;
               presentes no muestran quién fue cada día, y pesan en el promedio de presentes por clase.
             </p>
           )}
-          <details className="mt-4 text-sm">
-            <summary className="cursor-pointer text-xs text-white/50 hover:text-white/80">Ver los números de cada clase</summary>
-            <div className="mt-3 max-h-72 overflow-auto">
+          <details ref={detalle} className="mt-4 text-sm">
+            <summary className="cursor-pointer text-xs text-white/50 hover:text-white/80 print:hidden">Ver los números de cada clase</summary>
+            <div className="mt-3 max-h-72 overflow-auto print:max-h-none print:overflow-visible">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-white/10 uppercase tracking-wide text-white/40">

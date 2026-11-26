@@ -385,9 +385,11 @@ export function GraficoLineas({ puntos, series }: { puntos: PuntoLinea[]; series
       <svg
         width={ancho}
         height={ALTO}
+        // Con viewBox el gráfico se achica en el PDF si la hoja es más angosta que la pantalla.
+        viewBox={`0 0 ${ancho} ${ALTO}`}
         role="img"
         aria-label={`Porcentaje de presentes en cada clase: ${series.map((s) => s.etiqueta).join(' y ')}. Los valores están en la tabla de abajo.`}
-        className="block touch-pan-y"
+        className="block touch-pan-y print:h-auto print:max-w-full"
         onPointerDown={alMover}
         onPointerMove={alMover}
         onPointerLeave={alSalir}
