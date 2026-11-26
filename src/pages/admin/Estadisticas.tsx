@@ -107,7 +107,8 @@ export function Estadisticas() {
             <div>
               <CardTitle>Estadísticas</CardTitle>
               <CardSubtitle>
-                {seleccionada ? `Comisión ${seleccionada.nombre}` : 'Todas las comisiones'} · Datos al {formatFecha(hoy)}
+                {seleccionada ? `Comisión ${seleccionada.nombre}` : 'Todas las comisiones'}
+                <span className="print:hidden"> · Datos al {formatFecha(hoy)}</span>
               </CardSubtitle>
             </div>
             <div className="flex flex-wrap items-center gap-2 print:hidden">

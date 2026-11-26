@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
 import { FileDown, GraduationCap, Pencil, Plus, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
@@ -139,7 +138,7 @@ export function Parciales() {
         </h1>
         <p className="text-sm">
           {etiquetaFiltro && `${alumnosVisibles?.length} de ${notas?.length} alumnos · `}
-          Se aprueba con nota mayor o igual a {formatNota(notaAprobacion)} · Generado el {format(new Date(), 'dd/MM/yyyy')}
+          Se aprueba con nota mayor o igual a {formatNota(notaAprobacion)}
         </p>
       </div>
 

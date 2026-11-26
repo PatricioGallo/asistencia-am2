@@ -80,8 +80,7 @@ export function Asistencia() {
       <div className="print-area hidden print:block">
         <h1 className="text-xl font-bold">Asistencia — {comisionNombre}</h1>
         <p className="text-sm">
-          Se necesita {porcentajeRequerido}% de presencia para aprobar la cursada · Generado el{' '}
-          {format(new Date(), 'dd/MM/yyyy')}
+          Se necesita {porcentajeRequerido}% de presencia para aprobar la cursada
         </p>
       </div>
 
