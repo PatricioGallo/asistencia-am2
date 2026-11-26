@@ -131,3 +131,37 @@ export function useCargarNotas() {
     },
   })
 }
+
+export type InstanciaNota = 'parcial_1' | 'parcial_2' | 'recuperatorio_1' | 'recuperatorio_2'
+
+/**
+ * Marca "ausente" en una instancia a varios alumnos de una vez (los que quedaron
+ * sin nota). Solo toca esa instancia: el upsert actualiza únicamente las
+ * columnas que se mandan, las demás notas del alumno quedan como estaban.
+ */
+export function useMarcarAusentes() {
+  const { session } = useAuth()
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ instancia, alumnoIds }: { instancia: InstanciaNota; alumnoIds: string[] }) => {
+      if (alumnoIds.length === 0) return
+      const ahora = new Date().toISOString()
+      const filas = alumnoIds.map((alumno_id) => ({
+        alumno_id,
+        profesor_id: session!.user.id,
+        [instancia]: null,
+        [`${instancia}_ausente`]: true,
+        actualizado_at: ahora,
+      }))
+      const { error } = await supabase
+        .from('notas_parciales')
+        .upsert(filas as unknown as { alumno_id: string; profesor_id: string }[], { onConflict: 'alumno_id' })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notas-comision'] })
+      qc.invalidateQueries({ queryKey: ['estadisticas'] })
+    },
+  })
+}

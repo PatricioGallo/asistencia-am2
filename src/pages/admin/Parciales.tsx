@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { FileDown, GraduationCap, Pencil, Plus } from 'lucide-react'
+import { FileDown, GraduationCap, Pencil, Plus, UserX } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardSubtitle, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -19,7 +19,14 @@ import {
   type TipoRecuperatorio,
 } from '@/lib/notas'
 import { useComisiones } from '@/lib/queries/comisiones'
-import { useCargarNotas, useNotasComision, type AlumnoNotas } from '@/lib/queries/parciales'
+import {
+  useCargarNotas,
+  useMarcarAusentes,
+  useNotasComision,
+  type AlumnoNotas,
+  type InstanciaNota,
+} from '@/lib/queries/parciales'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 import { useSituaciones } from '@/lib/queries/estadisticas'
 import { ESTADO_CURSADA, ETIQUETAS_ESTADO_CURSADA, type EstadoCursada } from '@/lib/estadisticas'
@@ -113,6 +120,10 @@ export function Parciales() {
           </div>
         </div>
       </Card>
+
+      {notas && notas.length > 0 && comisionNombre && (
+        <ControlInstancias notas={notas} notaAprobacion={notaAprobacion} comisionNombre={comisionNombre} />
+      )}
 
       <div className="print-area hidden print:block">
         <h1 className="text-xl font-bold">
@@ -239,6 +250,98 @@ export function Parciales() {
           onClose={() => setModalAbierto(false)}
         />
       )}
+    </div>
+  )
+}
+
+const INSTANCIAS: { clave: InstanciaNota; nombre: string }[] = [
+  { clave: 'parcial_1', nombre: 'Parcial 1' },
+  { clave: 'parcial_2', nombre: 'Parcial 2' },
+  { clave: 'recuperatorio_1', nombre: 'Recuperatorio 1' },
+  { clave: 'recuperatorio_2', nombre: 'Recuperatorio 2' },
+]
+
+/**
+ * Si el alumno tiene que rendir esa instancia. Los parciales, todos. Las
+ * recuperaciones, solo quien las necesita (desaprobó o faltó a algún parcial;
+ * la 2 si tampoco aprobó con la 1): así "ausente al resto" no le pone ausente
+ * al recuperatorio a alguien que aprobó directo.
+ */
+function debeRendir(a: AlumnoNotas, instancia: InstanciaNota, notaAprobacion: number) {
+  if (instancia === 'parcial_1' || instancia === 'parcial_2') return true
+  const estado = calcularEstadoNotas(a.parcial_1, a.parcial_2, a.recuperatorio_1, a.recuperatorio_2, notaAprobacion)
+  return instancia === 'recuperatorio_1' ? estado.recu1Tipo != null : estado.recu2Tipo != null
+}
+
+/** Contador por instancia (para controlar que estén todas las notas) + "ausente al resto". */
+function ControlInstancias({
+  notas,
+  notaAprobacion,
+  comisionNombre,
+}: {
+  notas: AlumnoNotas[]
+  notaAprobacion: number
+  comisionNombre: string
+}) {
+  const marcar = useMarcarAusentes()
+  const confirm = useConfirm()
+
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 print:hidden">
+      {INSTANCIAS.map(({ clave, nombre }) => {
+        const rindieron = notas.filter((a) => typeof a[clave] === 'number').length
+        const ausentes = notas.filter((a) => a[clave] === 'ausente').length
+        const sinCargar = notas.filter((a) => a[clave] == null && debeRendir(a, clave, notaAprobacion))
+        const pendienteEsta = marcar.isPending && marcar.variables?.instancia === clave
+
+        return (
+          <Card key={clave} className="p-4">
+            <p className="text-sm font-semibold text-white">{nombre}</p>
+            <dl className="mt-2 space-y-0.5 text-xs">
+              <div className="flex justify-between gap-2">
+                <dt className="text-white/50">Rindieron</dt>
+                <dd className="font-semibold text-white">{rindieron}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-white/50">Ausentes</dt>
+                <dd className="font-semibold text-warn-500">{ausentes}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-white/50">Sin cargar</dt>
+                <dd className={cn('font-semibold', sinCargar.length > 0 ? 'text-danger-500' : 'text-ok-500')}>
+                  {sinCargar.length}
+                </dd>
+              </div>
+            </dl>
+            {sinCargar.length > 0 && (
+              <Button
+                variant="secondary"
+                className="mt-3 w-full !px-2 !py-1.5 text-xs"
+                loading={pendienteEsta}
+                disabled={marcar.isPending}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Ausente al resto · ${nombre}`,
+                    message: `Se va a marcar ausente en el ${nombre} a los ${sinCargar.length} alumnos de ${comisionNombre} que no tienen nota cargada. Las notas ya cargadas no se tocan.`,
+                    confirmLabel: 'Marcar ausentes',
+                  })
+                  if (!ok) return
+                  marcar.mutate(
+                    { instancia: clave, alumnoIds: sinCargar.map((a) => a.alumno_id) },
+                    {
+                      onSuccess: () => toast.success(`${sinCargar.length} ausentes cargados en el ${nombre}`),
+                      onError: () => toast.error('No se pudieron marcar los ausentes'),
+                    },
+                  )
+                }}
+              >
+                <UserX className="size-3.5" />
+                Ausente al resto ({sinCargar.length})
+              </Button>
+            )}
+          </Card>
+        )
+      })}
     </div>
   )
 }
