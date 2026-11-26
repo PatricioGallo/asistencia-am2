@@ -514,6 +514,8 @@ const COLUMNAS_TABLA: { titulo: string; valor: (r: Resumen) => string }[] = [
   { titulo: 'Asist. promedio', valor: (r) => formatPct(r.asistenciaPromedio) },
   { titulo: 'Aprobaron P1', valor: (r) => conPorcentaje(r.parcial1.conteo.aprobo, r.alumnos) },
   { titulo: 'Promedio P1', valor: (r) => (r.parcial1.promedio == null ? '—' : formatNota(r.parcial1.promedio)) },
+  { titulo: 'Aprobaron P2', valor: (r) => conPorcentaje(r.parcial2.conteo.aprobo, r.alumnos) },
+  { titulo: 'Promedio P2', valor: (r) => (r.parcial2.promedio == null ? '—' : formatNota(r.parcial2.promedio)) },
 ]
 
 function TablaComisiones({
