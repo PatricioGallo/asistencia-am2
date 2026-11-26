@@ -379,7 +379,8 @@ function RecuCelda({ tipo, nota, minimo }: { tipo: TipoRecuperatorio; nota: Nota
     <div className="flex flex-col items-center gap-1">
       <span className="text-[10px] font-medium uppercase tracking-wide text-white/30">{RECU_LABEL[tipo]}</span>
       {nota == null ? (
-        <span className="text-xs text-white/30">Pendiente</span>
+        // En el PDF solo queda qué recupera (Integral, Recup. Parcial 2), sin "Pendiente".
+        <span className="text-xs text-white/30 print:hidden">Pendiente</span>
       ) : (
         <span
           className={cn(
