@@ -61,6 +61,8 @@ export function Parciales() {
     const s = situaciones?.get(alumnoId)
     return s ? ESTADO_CURSADA[s] : undefined
   }
+  // Libre por faltas: no recupera nada, en los recuperatorios va directamente "Libre".
+  const librePorFaltas = (alumnoId: string) => situaciones?.get(alumnoId) === 'libre'
   const cantidadEn = (e: EstadoCursada) => notas?.filter((a) => estadoDe(a.alumno_id) === e).length
   const alumnosVisibles = filtro === 'total' ? notas : situaciones && notas?.filter((a) => estadoDe(a.alumno_id) === filtro)
   const etiquetaFiltro = filtro === 'total' ? null : ETIQUETAS_ESTADO_CURSADA[filtro].varios
@@ -122,7 +124,12 @@ export function Parciales() {
       </Card>
 
       {notas && notas.length > 0 && comisionNombre && (
-        <ControlInstancias notas={notas} notaAprobacion={notaAprobacion} comisionNombre={comisionNombre} />
+        <ControlInstancias
+          notas={notas}
+          notaAprobacion={notaAprobacion}
+          comisionNombre={comisionNombre}
+          librePorFaltas={librePorFaltas}
+        />
       )}
 
       <div className="print-area hidden print:block">
@@ -207,10 +214,10 @@ export function Parciales() {
                         <NotaChip nota={a.parcial_2} aprobado={estado.aprobado2} />
                       </td>
                       <td className="px-3 py-3 text-center">
-                        <RecuCelda tipo={estado.recu1Tipo} nota={a.recuperatorio_1} minimo={notaAprobacion} />
+                        <RecuCelda tipo={estado.recu1Tipo} nota={a.recuperatorio_1} minimo={notaAprobacion} libre={librePorFaltas(a.alumno_id)} />
                       </td>
                       <td className="px-3 py-3 text-center">
-                        <RecuCelda tipo={estado.recu2Tipo} nota={a.recuperatorio_2} minimo={notaAprobacion} />
+                        <RecuCelda tipo={estado.recu2Tipo} nota={a.recuperatorio_2} minimo={notaAprobacion} libre={librePorFaltas(a.alumno_id)} />
                       </td>
                       <td className="px-5 py-3 text-center">
                         <EstadoBadge estado={estadoDe(a.alumno_id)} cargando={!situaciones && !errorSituaciones} />
@@ -264,11 +271,13 @@ const INSTANCIAS: { clave: InstanciaNota; nombre: string }[] = [
 /**
  * Si el alumno tiene que rendir esa instancia. Los parciales, todos. Las
  * recuperaciones, solo quien las necesita (desaprobó o faltó a algún parcial;
- * la 2 si tampoco aprobó con la 1): así "ausente al resto" no le pone ausente
- * al recuperatorio a alguien que aprobó directo.
+ * la 2 si tampoco aprobó con la 1) y no está libre por faltas: así "ausente al
+ * resto" no le pone ausente al recuperatorio a alguien que aprobó directo o que
+ * ya quedó libre.
  */
-function debeRendir(a: AlumnoNotas, instancia: InstanciaNota, notaAprobacion: number) {
+function debeRendir(a: AlumnoNotas, instancia: InstanciaNota, notaAprobacion: number, libre: boolean) {
   if (instancia === 'parcial_1' || instancia === 'parcial_2') return true
+  if (libre) return false
   const estado = calcularEstadoNotas(a.parcial_1, a.parcial_2, a.recuperatorio_1, a.recuperatorio_2, notaAprobacion)
   return instancia === 'recuperatorio_1' ? estado.recu1Tipo != null : estado.recu2Tipo != null
 }
@@ -278,10 +287,12 @@ function ControlInstancias({
   notas,
   notaAprobacion,
   comisionNombre,
+  librePorFaltas,
 }: {
   notas: AlumnoNotas[]
   notaAprobacion: number
   comisionNombre: string
+  librePorFaltas: (alumnoId: string) => boolean
 }) {
   const marcar = useMarcarAusentes()
   const confirm = useConfirm()
@@ -291,7 +302,7 @@ function ControlInstancias({
       {INSTANCIAS.map(({ clave, nombre }) => {
         const rindieron = notas.filter((a) => typeof a[clave] === 'number').length
         const ausentes = notas.filter((a) => a[clave] === 'ausente').length
-        const sinCargar = notas.filter((a) => a[clave] == null && debeRendir(a, clave, notaAprobacion))
+        const sinCargar = notas.filter((a) => a[clave] == null && debeRendir(a, clave, notaAprobacion, librePorFaltas(a.alumno_id)))
         const pendienteEsta = marcar.isPending && marcar.variables?.instancia === clave
 
         return (
@@ -372,8 +383,10 @@ function NotaChip({ nota, aprobado }: { nota: NotaValor; aprobado: boolean | nul
   )
 }
 
-function RecuCelda({ tipo, nota, minimo }: { tipo: TipoRecuperatorio; nota: NotaValor; minimo: number }) {
+function RecuCelda({ tipo, nota, minimo, libre }: { tipo: TipoRecuperatorio; nota: NotaValor; minimo: number; libre: boolean }) {
   if (!tipo) return <span className="text-white/20">—</span>
+  // Libre por faltas y sin nota de recuperatorio: no recupera, en pantalla y en el PDF.
+  if (libre && nota == null) return <span className="text-xs font-semibold text-danger-500">Libre</span>
   const aprobado = nota == null ? null : nota === 'ausente' ? false : nota >= minimo
   return (
     <div className="flex flex-col items-center gap-1">
