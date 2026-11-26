@@ -22,9 +22,10 @@ import { useComisiones } from '@/lib/queries/comisiones'
 import { useCargarNotas, useNotasComision, type AlumnoNotas } from '@/lib/queries/parciales'
 import { useConfiguracionProfesor } from '@/lib/queries/configuracionProfesor'
 import { useSituaciones } from '@/lib/queries/estadisticas'
-import { ETIQUETAS_SITUACION, type Situacion } from '@/lib/estadisticas'
+import { ESTADO_CURSADA, ETIQUETAS_ESTADO_CURSADA, type EstadoCursada } from '@/lib/estadisticas'
 
-const SITUACIONES = Object.keys(ETIQUETAS_SITUACION) as Situacion[]
+const ESTADOS: EstadoCursada[] = ['pendiente', 'regular', 'libre']
+const TONO_ESTADO: Record<EstadoCursada, 'ok' | 'danger' | 'warn'> = { regular: 'ok', libre: 'danger', pendiente: 'warn' }
 
 /** Sin Asistencia ni el lápiz, que no salen en el PDF. */
 const COLUMNAS_PDF = 6
@@ -34,7 +35,7 @@ export function Parciales() {
   const [comisionId, setComisionId] = useState<string>('')
   const [alumnoEditando, setAlumnoEditando] = useState<{ id: string } | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
-  const [filtro, setFiltro] = useState<Situacion | 'total'>('total')
+  const [filtro, setFiltro] = useState<EstadoCursada | 'total'>('total')
 
   useEffect(() => {
     if (!comisionId && comisiones && comisiones.length > 0) setComisionId(comisiones[0].id)
@@ -48,9 +49,14 @@ export function Parciales() {
 
   const comisionNombre = comisiones?.find((c) => c.id === comisionId)?.nombre
 
-  const cantidadEn = (s: Situacion) => notas?.filter((a) => situaciones?.get(a.alumno_id) === s).length
-  const alumnosVisibles = filtro === 'total' ? notas : situaciones && notas?.filter((a) => situaciones.get(a.alumno_id) === filtro)
-  const etiquetaFiltro = filtro === 'total' ? null : ETIQUETAS_SITUACION[filtro]
+  // Mismo cálculo que la página de estadísticas (asistencia + notas), resumido en pendiente/regular/libre.
+  const estadoDe = (alumnoId: string): EstadoCursada | undefined => {
+    const s = situaciones?.get(alumnoId)
+    return s ? ESTADO_CURSADA[s] : undefined
+  }
+  const cantidadEn = (e: EstadoCursada) => notas?.filter((a) => estadoDe(a.alumno_id) === e).length
+  const alumnosVisibles = filtro === 'total' ? notas : situaciones && notas?.filter((a) => estadoDe(a.alumno_id) === filtro)
+  const etiquetaFiltro = filtro === 'total' ? null : ETIQUETAS_ESTADO_CURSADA[filtro].varios
 
   function handleDescargarPdf() {
     if (esIosStandalone()) {
@@ -79,15 +85,15 @@ export function Parciales() {
             </select>
             <select
               className="input-field w-auto"
-              aria-label="Filtrar por situación"
+              aria-label="Filtrar por estado"
               value={filtro}
-              onChange={(e) => setFiltro(e.target.value as Situacion | 'total')}
+              onChange={(e) => setFiltro(e.target.value as EstadoCursada | 'total')}
             >
               <option value="total">Total{notas ? ` (${notas.length})` : ''}</option>
-              {SITUACIONES.map((s) => (
-                <option key={s} value={s}>
-                  {ETIQUETAS_SITUACION[s]}
-                  {notas && situaciones ? ` (${cantidadEn(s)})` : ''}
+              {ESTADOS.map((e) => (
+                <option key={e} value={e}>
+                  {ETIQUETAS_ESTADO_CURSADA[e].varios}
+                  {notas && situaciones ? ` (${cantidadEn(e)})` : ''}
                 </option>
               ))}
             </select>
@@ -196,9 +202,7 @@ export function Parciales() {
                         <RecuCelda tipo={estado.recu2Tipo} nota={a.recuperatorio_2} minimo={notaAprobacion} />
                       </td>
                       <td className="px-5 py-3 text-center">
-                        <Badge tone={estado.estado === 'aprobado' ? 'ok' : estado.estado === 'desaprobado' ? 'danger' : 'warn'}>
-                          {estado.estado === 'aprobado' ? 'Aprobado' : estado.estado === 'desaprobado' ? 'Desaprobado' : 'Pendiente'}
-                        </Badge>
+                        <EstadoBadge estado={estadoDe(a.alumno_id)} cargando={!situaciones && !errorSituaciones} />
                       </td>
                       <td className="px-3 py-3 text-center print:hidden">
                         <button
@@ -237,6 +241,12 @@ export function Parciales() {
       )}
     </div>
   )
+}
+
+/** Pendiente / Regular / Libre (ver ESTADO_CURSADA). Sale de asistencia + notas, por eso puede tardar en cargar. */
+function EstadoBadge({ estado, cargando }: { estado: EstadoCursada | undefined; cargando: boolean }) {
+  if (!estado) return <span className="text-xs text-white/30">{cargando ? '…' : '—'}</span>
+  return <Badge tone={TONO_ESTADO[estado]}>{ETIQUETAS_ESTADO_CURSADA[estado].uno}</Badge>
 }
 
 /** Ausente va en naranja (warn): no es lo mismo que una nota realmente desaprobada (rojo). */

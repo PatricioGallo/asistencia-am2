@@ -18,6 +18,27 @@ export const ETIQUETAS_SITUACION: Record<Situacion, string> = {
   libre: 'Libres',
 }
 
+/**
+ * Estado que se muestra en Parciales (columna "Estado", filtro y PDF): solo
+ * pendiente, regular o libre. Libre es por faltas o por haber desaprobado
+ * también las dos recuperaciones; no existe "aprobado" (el que aprobó y cumple
+ * la asistencia queda regular).
+ */
+export type EstadoCursada = 'pendiente' | 'regular' | 'libre'
+
+export const ESTADO_CURSADA: Record<Situacion, EstadoCursada> = {
+  cursando: 'pendiente',
+  regular: 'regular',
+  desaprobado: 'libre',
+  libre: 'libre',
+}
+
+export const ETIQUETAS_ESTADO_CURSADA: Record<EstadoCursada, { uno: string; varios: string }> = {
+  pendiente: { uno: 'Pendiente', varios: 'Pendientes' },
+  regular: { uno: 'Regular', varios: 'Regulares' },
+  libre: { uno: 'Libre', varios: 'Libres' },
+}
+
 export type ResultadoParcial = 'aprobo' | 'desaprobo' | 'ausente' | 'sinNota'
 
 export interface AlumnoEstadistica {
